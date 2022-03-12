@@ -3,8 +3,12 @@
 
 use seed::{prelude::*, *};
 
-mod canvas;
+mod complex;
 
+mod fractal;
+use fractal::Fractal;
+
+mod canvas;
 use canvas::Canvas;
 
 
@@ -15,6 +19,8 @@ const DEFAULT_HEIGHT: u32 = 600;
 const DEFAULT_ITERATIONS: u32 = 400;
 const ENTER_KEY: &str = "Enter";
 const BACKGROUND_COLOR: &str = "#000000";
+const POINTS_PER_FRAME:u32 = 10;
+
 // ------ ------
 //     Init
 // ------ ------
@@ -34,6 +40,7 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
         y_min: -DEFAULT_XY,
         background_color: BACKGROUND_COLOR.to_string(),
         canvas: None,
+        fractal: None,
         paused: true,
     }
 }
@@ -54,6 +61,7 @@ pub struct Model {
     c_imag: f64,
     background_color: String,
     canvas: Option<Canvas>,
+    fractal: Option<Fractal>,
     paused: bool,
 }
 
@@ -85,23 +93,35 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         // Msg::WidthChanged(width)  => { log!("Message received: WidthChanged to {}",width); },
         Msg::MaxXChanged(x_max) => {
             log!("Message received: MaxXChanged to {}",x_max);
-            model.x_max = x_max.parse::<f64>().unwrap_or(model.x_max);
-            orders.after_next_render(|_| Msg::Clear);
+            let x_max = x_max.parse::<f64>().unwrap_or(model.x_max);
+            if x_max != model.x_max && x_max >= model.x_min {
+                model.x_max = x_max;
+                orders.after_next_render(|_| Msg::Clear);
+            }
         }
         Msg::MinXChanged(x_min) => {
             log!("Message received: MinXChanged to {}",x_min);
-            model.x_min = x_min.parse::<f64>().unwrap_or(model.x_min);
-            orders.after_next_render(|_| Msg::Clear);
+            let x_min = x_min.parse::<f64>().unwrap_or(model.x_min);
+            if x_min != model.x_min && x_min <= model.x_max {
+                model.x_min = x_min;
+                orders.after_next_render(|_| Msg::Clear);
+            }
         }
         Msg::MaxYChanged(y_max) => {
             log!("Message received: MaxYChanged to {}",y_max);
-            model.y_max = y_max.parse::<f64>().unwrap_or(model.y_max);
-            orders.after_next_render(|_| Msg::Clear);
+            let y_max = y_max.parse::<f64>().unwrap_or(model.y_max);
+            if y_max != model.y_max && y_max >= model.y_min {
+                model.y_max = y_max;
+                orders.after_next_render(|_| Msg::Clear);
+            }
         }
         Msg::MinYChanged(y_min) => {
             log!("Message received: MinYChanged to {}",y_min);
-            model.y_min = y_min.parse::<f64>().unwrap_or(model.y_min);
-            orders.after_next_render(|_| Msg::Clear);
+            let y_min = y_min.parse::<f64>().unwrap_or(model.y_min);
+            if y_min != model.y_min && y_min <= model.y_max {
+                model.y_min = y_min;
+                orders.after_next_render(|_| Msg::Clear);
+            }
         }
         Msg::CRealChanged(c_real) => {
             log!("Message received: CRealChanged to {}",c_real);
@@ -118,16 +138,47 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.max_iterations = iterations.parse::<u32>().unwrap_or(model.max_iterations);
             orders.after_next_render(|_| Msg::Clear);
         }
-        Msg::Start => { log!("Message received: Start"); }
-        Msg::Pause => { log!("Message received: Pause"); }
+        Msg::Start => {
+            log!("Message received: Start");
+            if model.canvas.is_none() {
+                let canvas = Canvas::new(&model);
+                canvas.clear_canvas(&model);
+                model.canvas = Some(canvas);
+            }
+            log!("Message received: Start, creating fractal");
+            let mut fractal = Fractal::new(&model);
+            model.canvas.as_ref().expect("unexpected missing canvas")
+                .draw_results(fractal.calculate(POINTS_PER_FRAME));
+            model.fractal = Some(fractal);
+            model.paused = false;
+            orders.after_next_render(|_| Msg::Draw);
+        }
+        Msg::Pause => {
+            log!("Message received: Pause");
+            model.paused = true;
+        }
         Msg::Clear => {
             log!("Message received: Clear");
-            if model.canvas.is_none() {
-                model.canvas = Some(Canvas::new());
+            if !model.paused {
+                model.paused = true;
             }
-            model.canvas.as_ref().expect("unexpected missing canvas").clear_canvas(&model);
+            model.fractal = None;
+            if model.canvas.is_none() {
+                let canvas = Canvas::new(&model);
+                canvas.clear_canvas(&model);
+                model.canvas = Some(canvas);
+            }
         }
-        Msg::Draw => { log!("Message received: Draw"); }
+        Msg::Draw => {
+            // log!("Message received: Draw");
+            if !model.paused {
+                model.canvas.as_ref().expect("unexpected missing canvas")
+                    .draw_results(model.fractal.as_mut().expect("unexpectted missing fractal")
+                        .calculate(POINTS_PER_FRAME));
+                orders.after_next_render(|_| Msg::Draw);
+            }
+        }
+
     }
 }
 
