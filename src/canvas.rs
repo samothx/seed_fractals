@@ -14,6 +14,9 @@ const START_HUE: u32 = 0;
 const DEFAULT_SATURATION: f32 = 1.0;
 const DEFAULT_LIGHTNESS: f32 = 0.5;
 
+const HUE_OFFSET: f32 = 0.0;
+const HUE_RANGE: f32 = 300.0;
+
 
 pub struct Canvas {
     canvas: HtmlCanvasElement,
@@ -62,7 +65,7 @@ impl Canvas {
             let color = if *value >= self.steps - 1 {
                 BACKGROUND_COLOR.to_string()
             } else {
-                Self::hue_to_rgb(f32::floor(*value as f32 * (360.0 / self.steps as f32)) as u32)
+                self.iterations_as_hue_to_rgb(*value)
             };
             if color != last_color {
                 // log!(format!("draw_result: color: {} pos: {},{}", color, x, y));
@@ -79,26 +82,28 @@ impl Canvas {
         });
     }
 
-    fn hue_to_rgb(hue: u32) -> String {
-        let safe_hue = if hue >= 360 {
-            (hue % 360) as i32
-        } else {
-            hue as i32
-        };
+    fn iterations_as_hue_to_rgb(&self, iterations: u32) -> String {
+        Self::hue_to_rgb( (iterations as f32 * (HUE_RANGE / self.steps as f32) + HUE_OFFSET) % 360.0)
+    }
 
+    fn hue_to_rgb(hue: f32) -> String {
         const TMP: f32 = 2.0 * DEFAULT_LIGHTNESS - 1.0;
         const C: f32 = (1.0 - if TMP >= 0.0 { TMP } else { -TMP }) * DEFAULT_SATURATION;
         const M: f32 = DEFAULT_LIGHTNESS - C / 2.0;
-        let x = C * (1.0 - i32::abs((safe_hue / 60) % 2 - 1) as f32);
+        let x = C * (1.0 - f32::abs((hue / 60.0) % 2.0 - 1.0));
 
-        let (r, g, b) = match hue {
-            0..=59 => (C, x, 0.0),
-            60..=159 => (x, C, 0.0),
-            120..=179 => (0.0, C, x),
-            180..=239 => (0.0, x, C),
-            240..=299 => (x, 0.0, C),
-            300..=359 => (C, 0.0, x),
-            _ => { panic!("invalid hue value"); }
+        let (r, g, b) = if hue >= 0.0 && hue < 60.0 {
+            (C, x, 0.0)
+        } else if hue >= 60.0 && hue < 120.0 {
+            (x, C, 0.0)
+        } else if hue >= 120.0 && hue < 180.0 {
+            (0.0, C, x)
+        } else if hue >= 180.0 && hue < 240.0 {
+            (0.0, x, C)
+        } else if hue >= 240.0 && hue < 300.0 {
+            (x, 0.0, C)
+        } else {
+            (C, 0.0, x)
         };
 
         let (r, g, b) = (
@@ -140,5 +145,22 @@ impl Canvas {
             f32::floor((b + m) * 255.0) as u32);
 
         format!("#{:X}{:X}{:X}", r % 0x100, g % 0x100, b % 0x100)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Canvas;
+    #[test]
+    fn test_iterations_as_hue_to_rgb() {
+        assert_eq!(Canvas::hue_to_rgb(0.0),"#FF0000");
+        assert_eq!(Canvas::hue_to_rgb(60.0),"#FFFF00");
+        assert_eq!(Canvas::hue_to_rgb(120.0),"#00FF00");
+        assert_eq!(Canvas::hue_to_rgb(180.0),"#00FFFF");
+        assert_eq!(Canvas::hue_to_rgb(240.0),"#0000FF");
+        assert_eq!(Canvas::hue_to_rgb(300.0),"#FF00FF");
+        assert_eq!(Canvas::hue_to_rgb(360.0),"#FF0000");
+        assert_eq!(Canvas::hue_to_rgb(340.0),"#FF0055");
+        // TODO: Tests for hsl_to_rgb
     }
 }

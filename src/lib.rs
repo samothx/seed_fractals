@@ -74,8 +74,6 @@ pub struct Model {
 
 #[derive(Clone)]
 enum Msg {
-    // HeightChanged(usize),
-    // WidthChanged(usize),
     MaxXChanged(String),
     MinXChanged(String),
     MaxYChanged(String),
@@ -86,6 +84,10 @@ enum Msg {
     Start,
     Pause,
     Clear,
+    /*Edit,
+    SaveEdit,
+    CancelEdit,
+     */
     Draw,
 }
 
@@ -173,6 +175,12 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 model.canvas.as_ref().expect("unexpected empty canvas").clear_canvas(&model);
             }
         }
+/*
+        Msg::Edit => { log!("Message received: Edit"); }
+        Msg::SaveEdit => { log!("Message received: SaveEdit"); }
+        Msg::CancelEdit => { log!("Message received: SaveEdit"); }
+
+ */
         Msg::Draw => {
             // log!("Message received: Draw");
             if !model.paused {

@@ -476,7 +476,6 @@ name = "seed-fractals"
 version = "0.1.0"
 dependencies = [
  "seed",
- "wasm-bindgen",
  "wasm-bindgen-test",
 ]
 
