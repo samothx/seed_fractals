@@ -6,6 +6,7 @@ use crate::fractal::Points;
 use seed::prelude::web_sys::HtmlCanvasElement;
 use seed::prelude::JsValue;
 
+
 const COLOR_MAX: u32 = 0xFFFFFF;
 const COLOR_MIN: u32 = 0xFFFFFF;
 
@@ -24,7 +25,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new(model: &Model) -> Canvas {
         Canvas {
-            canvas: canvas("canvas").unwrap(),
+            canvas: canvas("canvas").expect("Canvas not found"),
             steps: model.max_iterations,
             width: model.width,
         }
@@ -32,6 +33,7 @@ impl Canvas {
 
     pub fn clear_canvas(&self, model: &Model) {
         log!("Clear Canvas");
+
         if model.height != self.canvas.height() {
             self.canvas.set_height(model.height);
         }
@@ -40,9 +42,12 @@ impl Canvas {
         }
 
         let ctx = seed::canvas_context_2d(&self.canvas);
+        // ctx.begin_path();
         ctx.set_fill_style(&JsValue::from_str(model.background_color.as_str()));
-        //  ctx.fill_rect(0.into(), 0.into(), model.width.into(), model.height.into());
-        ctx.fill();
+        ctx.fill_rect(0.into(), 0.into(), model.width.into(), model.height.into());
+
+        // ctx.fill();
+        // ctx.stroke();
     }
 
     pub fn draw_results(&self, points: Points) {
@@ -60,11 +65,11 @@ impl Canvas {
                 Self::hue_to_rgb(f32::floor(*value as f32 * (360.0 / self.steps as f32)) as u32)
             };
             if color != last_color {
-                log!(format!("draw_result: color: {} pos: {},{}", color, x, y));
+                // log!(format!("draw_result: color: {} pos: {},{}", color, x, y));
                 ctx.set_fill_style(&JsValue::from_str(color.as_str()));
                 last_color = color;
             }
-            ctx.fill_rect(x.into(), y.into(), 100.0, 100.0);
+            ctx.fill_rect(x.into(), y.into(), 1.0, 1.0);
 
             x += 1;
             if x >= self.width {
@@ -101,7 +106,7 @@ impl Canvas {
             f32::floor((g + M) * 255.0) as u32,
             f32::floor((b + M) * 255.0) as u32);
 
-        format!("{:0>2X}{:0>2X}{:0>2X}", r % 0x100, g % 0x100, b % 0x100)
+        format!("#{:0>2X}{:0>2X}{:0>2X}", r % 0x100, g % 0x100, b % 0x100)
     }
 
     fn hsl_to_rgb(hue: u32, saturation: f32, lightness: f32) -> String {
@@ -134,6 +139,6 @@ impl Canvas {
             f32::floor((g + m) * 255.0) as u32,
             f32::floor((b + m) * 255.0) as u32);
 
-        format!("{:X}{:X}{:X}", r % 0x100, g % 0x100, b % 0x100)
+        format!("#{:X}{:X}{:X}", r % 0x100, g % 0x100, b % 0x100)
     }
 }

@@ -19,7 +19,7 @@ const DEFAULT_HEIGHT: u32 = 600;
 const DEFAULT_ITERATIONS: u32 = 400;
 const ENTER_KEY: &str = "Enter";
 const BACKGROUND_COLOR: &str = "#000000";
-const POINTS_PER_FRAME:u32 = 10;
+const MAX_DURATION: f64 = 0.1;
 
 // ------ ------
 //     Init
@@ -42,6 +42,7 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
         canvas: None,
         fractal: None,
         paused: true,
+        max_duration: MAX_DURATION
     }
 }
 
@@ -63,6 +64,7 @@ pub struct Model {
     canvas: Option<Canvas>,
     fractal: Option<Fractal>,
     paused: bool,
+    max_duration: f64
 }
 
 // ------ ------
@@ -148,7 +150,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             log!("Message received: Start, creating fractal");
             let mut fractal = Fractal::new(&model);
             model.canvas.as_ref().expect("unexpected missing canvas")
-                .draw_results(fractal.calculate(POINTS_PER_FRAME));
+                .draw_results(fractal.calculate());
             model.fractal = Some(fractal);
             model.paused = false;
             orders.after_next_render(|_| Msg::Draw);
@@ -174,8 +176,12 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             if !model.paused {
                 model.canvas.as_ref().expect("unexpected missing canvas")
                     .draw_results(model.fractal.as_mut().expect("unexpectted missing fractal")
-                        .calculate(POINTS_PER_FRAME));
-                orders.after_next_render(|_| Msg::Draw);
+                        .calculate());
+                if !model.fractal.as_ref().expect("unexpectted missing fractal").is_done() {
+                    orders.after_next_render(|_| Msg::Draw);
+                } else {
+                    model.paused = true;
+                }
             }
         }
 
@@ -200,7 +206,8 @@ fn view(model: &Model) -> Node<Msg> {
                 attrs!{
                     At::Width => model.width.to_string(),
                     At::Height => model.height.to_string()
-                }
+                },
+                "Your browser does not support the canvas tag."
             ]
         ]
     ]

@@ -40,18 +40,23 @@
 }
 
 .canvas_cntr {
-    background-color: black;
+    background-color: darkgray;
     border-radius: 25px;
     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.6);
     margin-top: 10px;
     margin-bottom: 10px;
 }
 
+
 .canvas {
     margin-top: 20px;
     margin-bottom: 20px;
     margin-left: 20px;
     margin-right: 20px;
+    border: red;
+    border-style: solid;
+    border-width: 2px;
+
 }
 
 .button {
