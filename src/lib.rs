@@ -169,6 +169,8 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 let canvas = Canvas::new(&model);
                 canvas.clear_canvas(&model);
                 model.canvas = Some(canvas);
+            } else {
+                model.canvas.as_ref().expect("unexpected empty canvas").clear_canvas(&model);
             }
         }
         Msg::Draw => {

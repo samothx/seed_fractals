@@ -50,7 +50,7 @@ impl Canvas {
         // ctx.stroke();
     }
 
-    pub fn draw_results(&self, points: Points) {
+    pub fn draw_results(&self, points: &Points) {
         let mut x = points.x_start;
         let mut y = points.y_start;
         let ctx = seed::canvas_context_2d(&self.canvas);
@@ -58,7 +58,7 @@ impl Canvas {
         ctx.fill();
 
         let mut last_color = "".to_string();
-        points.values.iter().for_each(|value| {
+        points.values[0..points.num_points].iter().for_each(|value| {
             let color = if *value >= self.steps - 1 {
                 BACKGROUND_COLOR.to_string()
             } else {

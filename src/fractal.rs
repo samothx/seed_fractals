@@ -8,7 +8,8 @@ const MAX_POINTS: usize = 1000;
 pub struct Points {
     pub x_start: u32,
     pub y_start: u32,
-    pub values: Vec<u32>,
+    pub num_points: usize,
+    pub values: [u32;MAX_POINTS],
 }
 
 
@@ -25,6 +26,7 @@ pub struct Fractal {
     y_curr: u32,
     iterations: u32,
     max_duration: f64,
+    res: Points,
     done: bool
 }
 
@@ -47,6 +49,12 @@ impl Fractal {
             height: model.height,
             iterations: model.max_iterations,
             max_duration: model.max_duration,
+            res: Points{
+                x_start: 0,
+                y_start: 0,
+                num_points: 0,
+                values: [0;MAX_POINTS]
+            },
             done: false
         }
     }
@@ -79,29 +87,26 @@ impl Fractal {
         }
     }
 
-    pub fn calculate(&mut self) -> Points {
+    pub fn calculate<'a>(&'a mut self) -> &'a Points {
         let performance = web_sys::window().expect("Window not found")
             .performance()
             .expect("performance should be available");
 
         let start = performance.now();
-        let mut res = Points {
-            x_start: self.x_curr,
-            y_start: self.y_curr,
-            values: Vec::with_capacity(MAX_POINTS),
-        };
+
+        self.res.x_start = self.x_curr;
+        self.res.y_start = self.y_curr;
+        self.res.num_points = 0;
 
         let mut x = self.x_curr;
         let mut y = self.y_curr;
-        let mut points = 0;
-
-        loop {
+        let mut points_done : Option<usize> = None;
+        for count in 0..self.res.values.len() {
             let x_calc = x as f64 * self.x_scale + self.x_offset;
             let y_calc = y as f64 * self.y_scale + self.y_offset;
             let curr = self.iterate(x_calc, y_calc);
-            res.values.push(curr);
-            points += 1;
-            
+            self.res.values[count] = curr;
+
             if x < self.width {
                 x += 1;
             } else {
@@ -109,26 +114,28 @@ impl Fractal {
                 y += 1;
                 if y >= self.height {
                     self.done = true;
+                    points_done = Some(count + 1);
                     break;
                 }
             }
 
 
-            if points % 10 == 0 {
-                if points >= MAX_POINTS {
-                    break;
-                }
-
-                // log!(format!("Fractal::calculate: check time: iterations: {}, elapsed: {}", num_iterations - last_check, performance.now() - start));
+            if count % 10 == 0 {
                 if performance.now() - start >= self.max_duration {
+                    points_done = Some(count + 1);
                     break;
                 }
             }
+        }
+        if let Some(points) = points_done {
+            self.res.num_points = points;
+        } else {
+            self.res.num_points = MAX_POINTS;
         }
 
         self.x_curr = x;
         self.y_curr = y;
 
-        res
+        &self.res
     }
 }
