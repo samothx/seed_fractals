@@ -29,7 +29,7 @@ impl Canvas {
     pub fn new(model: &Model) -> Canvas {
         Canvas {
             canvas: canvas("canvas").expect("Canvas not found"),
-            steps: model.max_iterations,
+            steps: model.config.max_iterations,
             width: model.width,
         }
     }

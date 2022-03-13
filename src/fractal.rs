@@ -34,21 +34,22 @@ pub struct Fractal {
 impl Fractal {
     pub fn new(model: &Model) -> Fractal {
         log!(format!("creating fractal with: x_max: {}, x_min: {}, y_max: {}, y_min: {}, c: {}",
-            model.x_max, model.x_min, model.y_max, model.y_min, Complex::new(model.c_real, model.c_imag)));
-        let x_scale = (model.x_max - model.x_min) / model.width as f64;
-        let y_scale = (model.y_max - model.y_min) / model.height as f64;
+            model.config.x_max, model.config.x_min, model.config.y_max, model.config.y_min,
+            Complex::new(model.config.c_real, model.config.c_imag)));
+        let x_scale = (model.config.x_max - model.config.x_min) / model.width as f64;
+        let y_scale = (model.config.y_max - model.config.y_min) / model.height as f64;
         Fractal {
             x_scale,
             y_scale,
-            x_offset: model.x_min,
-            y_offset: model.y_min,
-            c: Complex::new(model.c_real, model.c_imag),
-            max: model.c_real * model.c_real + model.c_imag * model.c_imag,
+            x_offset: model.config.x_min,
+            y_offset: model.config.y_min,
+            c: Complex::new(model.config.c_real, model.config.c_imag),
+            max: model.config.c_real * model.config.c_real + model.config.c_imag * model.config.c_imag,
             x_curr: 0,
             width: model.width,
             y_curr: 0,
             height: model.height,
-            iterations: model.max_iterations,
+            iterations: model.config.max_iterations,
             res: Points{
                 x_start: 0,
                 y_start: 0,

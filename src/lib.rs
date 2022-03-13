@@ -2,6 +2,8 @@
 #![allow(dead_code)]
 
 use seed::{prelude::*, *};
+use serde::{Deserialize, Serialize};
+
 mod complex;
 use complex::Complex;
 
@@ -24,7 +26,7 @@ const DEFAULT_HEIGHT: u32 = 600;
 const DEFAULT_ITERATIONS: u32 = 400;
 const ENTER_KEY: &str = "Enter";
 const BACKGROUND_COLOR: &str = "#000000";
-
+const STORAGE_KEY: &str = "seed_fractals";
 
 // ------ ------
 //     Init
@@ -36,13 +38,7 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
     Model {
         width: DEFAULT_WIDTH,
         height: DEFAULT_HEIGHT,
-        max_iterations: DEFAULT_ITERATIONS,
-        c_real: DEFAULT_C.0,
-        c_imag: DEFAULT_C.1,
-        x_max: DEFAULT_XY,
-        x_min: -DEFAULT_XY,
-        y_max: DEFAULT_XY,
-        y_min: -DEFAULT_XY,
+        config:  LocalStorage::get(STORAGE_KEY).unwrap_or_default(),
         background_color: BACKGROUND_COLOR.to_string(),
         canvas: None,
         fractal: None,
@@ -57,6 +53,15 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
 pub struct Model {
     width: u32,
     height: u32,
+    config: Config,
+    background_color: String,
+    canvas: Option<Canvas>,
+    fractal: Option<Fractal>,
+    paused: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Config {
     max_iterations: u32,
     x_max: f64,
     x_min: f64,
@@ -64,10 +69,20 @@ pub struct Model {
     y_min: f64,
     c_real: f64,
     c_imag: f64,
-    background_color: String,
-    canvas: Option<Canvas>,
-    fractal: Option<Fractal>,
-    paused: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            max_iterations: DEFAULT_ITERATIONS,
+            x_max: DEFAULT_XY,
+            x_min: -DEFAULT_XY,
+            y_max: DEFAULT_XY,
+            y_min: -DEFAULT_XY,
+            c_real: DEFAULT_C.0,
+            c_imag: DEFAULT_C.1,
+        }
+    }
 }
 
 // ------ ------
@@ -127,25 +142,25 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             let document = window().document().expect("document not found");
 
             let _ = document.get_element_by_id("iterations").expect("iterations not found")
-                .set_attribute(At::Value.as_str(), &model.max_iterations.to_string());
+                .set_attribute(At::Value.as_str(), &model.config.max_iterations.to_string());
 
             let _ = document.get_element_by_id("max_x").expect("max_x not found")
-                .set_attribute(At::Value.as_str(), &model.x_max.to_string());
+                .set_attribute(At::Value.as_str(), &model.config.x_max.to_string());
 
             let _ = document.get_element_by_id("min_x").expect("min_x not found")
-                .set_attribute(At::Value.as_str(), &model.x_min.to_string());
+                .set_attribute(At::Value.as_str(), &model.config.x_min.to_string());
 
             let _ = document.get_element_by_id("max_y").expect("max_y not found")
-                .set_attribute(At::Value.as_str(), &model.y_max.to_string());
+                .set_attribute(At::Value.as_str(), &model.config.y_max.to_string());
 
             let _ = document.get_element_by_id("min_y").expect("min_y not found")
-                .set_attribute(At::Value.as_str(), &model.y_min.to_string());
+                .set_attribute(At::Value.as_str(), &model.config.y_min.to_string());
 
             let _ = document.get_element_by_id("c_real").expect("c_real not found")
-                .set_attribute(At::Value.as_str(), &model.c_real.to_string());
+                .set_attribute(At::Value.as_str(), &model.config.c_real.to_string());
 
             let _ = document.get_element_by_id("c_imag").expect("c_imag not found")
-                .set_attribute(At::Value.as_str(), &model.c_imag.to_string());
+                .set_attribute(At::Value.as_str(), &model.config.c_imag.to_string());
 
             document.get_element_by_id("edit_cntr").expect("edit_cntr not found")
                 .set_class_name("edit_cntr_visible");
@@ -153,39 +168,40 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Msg::SaveEdit => {
             log!("Message received: SaveEdit");
             let document = window().document().expect("document not found");
-            if let Some(value) = document.get_element_by_id("iterations").expect("iterations not found")
-                .get_attribute(At::Value.as_str()) {
-                model.max_iterations = value.parse::<u32>().unwrap_or(model.max_iterations);
-            }
+
             if let Some(value) = get_u32_from_input("iterations") {
-                model.max_iterations = value;
+                model.config.max_iterations = value;
             }
 
             if let Some(value) = get_f64_from_input("max_x") {
-                model.x_max = value;
+                model.config.x_max = value;
             }
 
             if let Some(value) = get_f64_from_input("min_x") {
-                model.x_min = value;
+                model.config.x_min = value;
             }
 
             if let Some(value) = get_f64_from_input("max_y") {
-                model.y_max = value;
+                model.config.y_max = value;
             }
 
             if let Some(value) = get_f64_from_input("min_y") {
-                model.y_min = value;
+                model.config.y_min = value;
             }
 
             if let Some(value) = get_f64_from_input("c_real") {
-                model.c_real = value;
+                model.config.c_real = value;
             }
 
             if let Some(value) = get_f64_from_input("c_imag") {
-                model.c_imag = value;
+                model.config.c_imag = value;
             }
+
+            LocalStorage::insert(STORAGE_KEY, &model.config).expect("save data to LocalStorage");
+
             log!(format!("Save: saved values x_max: {}, x_min: {}, y_max: {}, y_min: {}, c: {}",
-                model.x_max, model.x_min, model.y_max, model.y_min, Complex::new(model.c_real, model.c_imag)));
+                model.config.x_max, model.config.x_min, model.config.y_max, model.config.y_min,
+                Complex::new(model.config.c_real, model.config.c_imag)));
             document.get_element_by_id("edit_cntr").expect("edit_cntr not found")
                 .set_class_name("edit_cntr_hidden");
             // TODO: save to local storage
