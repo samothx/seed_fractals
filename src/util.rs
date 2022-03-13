@@ -3,6 +3,21 @@ use seed::window;
 use seed::prelude::{web_sys::HtmlInputElement};
 use seed::log;
 
+
+pub fn set_f64_on_input(name: &str,value: f64) {
+    if let Ok(element) = window().document().expect("html document not found")
+        .get_element_by_id(name).expect(format!("element {} not found", name).as_str()).dyn_into::<HtmlInputElement>() {
+        element.set_value(&value.to_string())
+    }
+}
+
+pub fn set_u32_on_input(name: &str,value: u32) {
+    if let Ok(element) = window().document().expect("html document not found")
+        .get_element_by_id(name).expect(format!("element {} not found", name).as_str()).dyn_into::<HtmlInputElement>() {
+        element.set_value(&value.to_string())
+    }
+}
+
 pub fn get_f64_from_input(name: &str) -> Option<f64> {
     if let Ok(element) = window().document().expect("html document not found")
         .get_element_by_id(name).expect(format!("element {} not found", name).as_str()).dyn_into::<HtmlInputElement>() {

@@ -1,9 +1,11 @@
-use seed::canvas;
+
 use crate::{Model, BACKGROUND_COLOR};
 use seed::log;
 
+use seed::{prelude::*, *};
+
 use crate::fractal::Points;
-use seed::prelude::web_sys::HtmlCanvasElement;
+use seed::prelude::web_sys::{HtmlCanvasElement, ImageData};
 use seed::prelude::JsValue;
 
 
@@ -58,7 +60,6 @@ impl Canvas {
         let mut y = points.y_start;
         let ctx = seed::canvas_context_2d(&self.canvas);
         ctx.set_fill_style(&JsValue::from_str("FFFFFF"));
-        ctx.fill();
 
         let mut last_color = "".to_string();
         points.values[0..points.num_points].iter().for_each(|value| {
@@ -80,6 +81,66 @@ impl Canvas {
                 y += 1;
             }
         });
+    }
+
+    pub fn draw_frame(&self, x_start: i32,y_start: i32, x_end: i32, y_end: i32) -> ImageData {
+        // log!(format!("draw_frame: ({},{}),({},{})", x_start,y_start, x_end, y_end));
+        let bounding_rect = self.canvas.get_bounding_client_rect();
+        let scale_x: f64 = f64::from(self.canvas.width()) / bounding_rect.width();
+        let scale_y: f64 = f64::from(self.canvas.height()) / bounding_rect.height();
+        let canvas_left: f64 = (f64::from(x_start) - bounding_rect.left()) * scale_x;
+        let canvas_top: f64 = (f64::from(y_start) - bounding_rect.top()) * scale_y;
+        let canvas_right: f64 = (f64::from(x_end) - bounding_rect.left()) * scale_x;
+        let canvas_bottom: f64 = (f64::from(y_end) - bounding_rect.top()) * scale_y;
+
+        // log!(format!("draw_frame: scale_x: {}, scale_y: {}", scale_x, scale_y));
+        // if canvas_left - canvas_right > 0.0 || canvas_top - canvas_bottom >= 0.0 {
+
+        let ctx = seed::canvas_context_2d(&self.canvas);
+
+        // TODO: try this again later
+        /*
+        let image_width = f64::max(canvas_right - canvas_left, 1.0);
+        let image_height = f64::max(canvas_bottom - canvas_top, 1.0);
+        log!(format!("draw_frame: image coords: ({},{}),({},{})", canvas_left,canvas_top, image_width, image_height));
+        let image_data =
+            ctx.get_image_data(canvas_left, canvas_top, image_width, image_height)
+                .expect("failed to retrieve image data")
+                .dyn_into::<ImageData>().expect("Failed to cast to ImageData");
+        */
+        let image_data =
+            ctx.get_image_data(0.0, 0.0, self.canvas.width().into(), self.canvas.height().into())
+                .expect("failed to retrieve image data")
+                .dyn_into::<ImageData>().expect("Failed to cast to ImageData");
+
+        ctx.begin_path();
+        ctx.set_stroke_style(&JsValue::from_str("#FFFFFF"));
+        ctx.move_to(canvas_left, canvas_top);
+        ctx.line_to(canvas_right, canvas_top);
+        ctx.line_to(canvas_right, canvas_bottom);
+        ctx.line_to(canvas_left, canvas_bottom);
+        ctx.line_to(canvas_left, canvas_top);
+        ctx.stroke();
+        image_data
+    }
+
+    pub fn undraw(&self,image_data: &ImageData)  {
+        // log!(format!("undraw: ({},{}) width: {} height: {}", x_start,y_start, image_data.width(), image_data.height()));
+        let ctx = seed::canvas_context_2d(&self.canvas);
+        ctx.put_image_data(
+            image_data,
+            0.0,
+            0.0).expect("cannot draw image data");
+    }
+
+    pub fn viewport_to_canvas_coords(&self, x_start: i32,y_start: i32, x_end: i32, y_end: i32) -> (f64,f64,f64,f64) {
+        let bounding_rect = self.canvas.get_bounding_client_rect();
+        let scale_x: f64 = f64::from(self.canvas.width()) / bounding_rect.width();
+        let scale_y: f64 = f64::from(self.canvas.height()) / bounding_rect.height();
+        (   (f64::from(x_start) - bounding_rect.left()) * scale_x,
+            (f64::from(y_start) - bounding_rect.top()) * scale_y,
+            (f64::from(x_end) - bounding_rect.left()) * scale_x,
+            (f64::from(y_end) - bounding_rect.top()) * scale_y)
     }
 
     fn iterations_as_hue_to_rgb(&self, iterations: u32) -> String {

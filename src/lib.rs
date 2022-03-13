@@ -5,18 +5,22 @@ use seed::{prelude::*, *};
 use serde::{Deserialize, Serialize};
 
 mod complex;
+
 use complex::Complex;
 
 mod fractal;
 
+use fractal::Fractal;
+
 mod util;
 
-use fractal::Fractal;
+use util::{get_u32_from_input, get_f64_from_input};
 
 mod canvas;
 
 use canvas::Canvas;
-use crate::util::{get_u32_from_input, get_f64_from_input};
+use web_sys::ImageData;
+use crate::util::{set_f64_on_input, set_u32_on_input};
 
 
 const DEFAULT_XY: f64 = 1.5;
@@ -38,11 +42,13 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
     Model {
         width: DEFAULT_WIDTH,
         height: DEFAULT_HEIGHT,
-        config:  LocalStorage::get(STORAGE_KEY).unwrap_or_default(),
+        config: LocalStorage::get(STORAGE_KEY).unwrap_or_default(),
         background_color: BACKGROUND_COLOR.to_string(),
         canvas: None,
         fractal: None,
+        mouse_drag: None,
         paused: true,
+        edit_mode: false,
     }
 }
 
@@ -57,7 +63,9 @@ pub struct Model {
     background_color: String,
     canvas: Option<Canvas>,
     fractal: Option<Fractal>,
+    mouse_drag: Option<MouseDrag>,
     paused: bool,
+    edit_mode: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -69,6 +77,12 @@ struct Config {
     y_min: f64,
     c_real: f64,
     c_imag: f64,
+}
+
+struct MouseDrag {
+    start: (i32, i32),
+    curr: (i32, i32),
+    image_data: Option<ImageData>,
 }
 
 impl Default for Config {
@@ -99,6 +113,9 @@ enum Msg {
     SaveEdit,
     CancelEdit,
     Draw,
+    MouseDown(web_sys::MouseEvent),
+    MouseMove(web_sys::MouseEvent),
+    MouseUp(web_sys::MouseEvent),
 }
 
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -139,34 +156,23 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 
         Msg::Edit => {
             log!("Message received: Edit");
+            model.edit_mode = true;
             let document = window().document().expect("document not found");
 
-            let _ = document.get_element_by_id("iterations").expect("iterations not found")
-                .set_attribute(At::Value.as_str(), &model.config.max_iterations.to_string());
-
-            let _ = document.get_element_by_id("max_x").expect("max_x not found")
-                .set_attribute(At::Value.as_str(), &model.config.x_max.to_string());
-
-            let _ = document.get_element_by_id("min_x").expect("min_x not found")
-                .set_attribute(At::Value.as_str(), &model.config.x_min.to_string());
-
-            let _ = document.get_element_by_id("max_y").expect("max_y not found")
-                .set_attribute(At::Value.as_str(), &model.config.y_max.to_string());
-
-            let _ = document.get_element_by_id("min_y").expect("min_y not found")
-                .set_attribute(At::Value.as_str(), &model.config.y_min.to_string());
-
-            let _ = document.get_element_by_id("c_real").expect("c_real not found")
-                .set_attribute(At::Value.as_str(), &model.config.c_real.to_string());
-
-            let _ = document.get_element_by_id("c_imag").expect("c_imag not found")
-                .set_attribute(At::Value.as_str(), &model.config.c_imag.to_string());
+            set_u32_on_input("iterations",model.config.max_iterations);
+            set_f64_on_input("max_x", model.config.x_max);
+            set_f64_on_input("min_x", model.config.x_min);
+            set_f64_on_input("max_y", model.config.y_max);
+            set_f64_on_input("min_y", model.config.y_min);
+            set_f64_on_input("c_real", model.config.c_real);
+            set_f64_on_input("c_imag", model.config.c_imag);
 
             document.get_element_by_id("edit_cntr").expect("edit_cntr not found")
                 .set_class_name("edit_cntr_visible");
         }
         Msg::SaveEdit => {
             log!("Message received: SaveEdit");
+            model.edit_mode = false;
             let document = window().document().expect("document not found");
 
             if let Some(value) = get_u32_from_input("iterations") {
@@ -209,6 +215,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::CancelEdit => {
             log!("Message received: SaveEdit");
+            model.edit_mode = false;
             window().document().expect("document not found")
                 .get_element_by_id("edit_cntr").expect("edit_cntr not found")
                 .set_class_name("edit_cntr_hidden");
@@ -226,6 +233,53 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                     model.paused = true;
                 }
             }
+        }
+        Msg::MouseDown(ev) => {
+            log!("Message received: MouseDown");
+            let pos = (ev.client_x(), ev.client_y());
+            model.mouse_drag = Some(MouseDrag {
+                start: pos,
+                curr: pos,
+                image_data: None,
+            });
+        }
+        Msg::MouseMove(ev) => {
+            log!("Message received: MouseMove");
+            if let Some(mouse_drag) = model.mouse_drag.as_mut() {
+                mouse_drag.curr = (ev.client_x(), ev.client_y());
+                if let Some(canvas) = model.canvas.as_ref() {
+                    if let Some(image_data) = mouse_drag.image_data.as_ref() {
+                        canvas.undraw(image_data);
+                    }
+
+                    mouse_drag.image_data = Some(canvas.draw_frame(
+                        mouse_drag.start.0, mouse_drag.start.1,
+                        mouse_drag.curr.0, mouse_drag.curr.1));
+                }
+            }
+        }
+        Msg::MouseUp(ev) => {
+            log!("Message received: MouseUp");
+            if let Some(mouse_drag) = model.mouse_drag.as_mut() {
+                mouse_drag.curr = (ev.client_x(), ev.client_y());
+                if let Some(canvas) = model.canvas.as_ref() {
+                    if let Some(image_data) = mouse_drag.image_data.as_ref() {
+                        canvas.undraw(image_data);
+                    }
+                    let (x_start, y_start, x_end, y_end) = canvas.viewport_to_canvas_coords(
+                        mouse_drag.start.0, mouse_drag.start.1,
+                        mouse_drag.curr.0, mouse_drag.curr.1);
+                    log!("setting new values");
+                    let x_scale = (model.config.x_max - model.config.x_min) / model.width as f64;
+                    set_f64_on_input("max_x", x_start * x_scale + model.config.x_min);
+                    set_f64_on_input("min_x", x_end * x_scale + model.config.x_min);
+                    let x_scale = (model.config.y_max - model.config.y_min) / model.height as f64;
+                    set_f64_on_input("max_y", y_start * x_scale + model.config.y_min);
+                    set_f64_on_input("min_y", y_end * x_scale + model.config.y_min);
+                }
+                mouse_drag.image_data = None;
+            }
+            model.mouse_drag = None;
         }
     }
 }
@@ -250,7 +304,24 @@ fn view(model: &Model) -> Node<Msg> {
                     At::Width => model.width.to_string(),
                     At::Height => model.height.to_string()
                 },
-                "Your browser does not support the canvas tag."
+                "Your browser does not support the canvas tag.",
+                IF!(model.edit_mode =>
+                        ev(Ev::MouseDown, |event| {
+                            let mouse_event: web_sys::MouseEvent = event.unchecked_into();
+                            Msg::MouseDown(mouse_event)})
+                ),
+                IF!(model.mouse_drag.is_some() =>
+                        vec![
+                            ev(Ev::MouseMove, |event| {
+                                let mouse_event: web_sys::MouseEvent = event.unchecked_into();
+                                Msg::MouseMove(mouse_event)
+                            }),
+                            ev(Ev::MouseUp, |event| {
+                                let mouse_event: web_sys::MouseEvent = event.unchecked_into();
+                                Msg::MouseUp(mouse_event)
+                            })
+                        ]
+                    ),
             ]
         ]
     ]
@@ -431,7 +502,6 @@ fn view_editor() -> Node<Msg> {
         ]
     ]
 }
-
 
 
 // ------ ------

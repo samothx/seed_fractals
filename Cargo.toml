@@ -19,6 +19,10 @@ wasm-bindgen-test = "0.3.18"
 seed = "0.8.0"
 serde = "1.0.136"
 
+[dependencies.web-sys]
+version = "0.3"
+features=[ "DomRect", "Element", "ImageData"]
+
 [profile.release]
 lto = true
 opt-level = 'z'
