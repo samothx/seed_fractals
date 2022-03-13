@@ -4,6 +4,7 @@ use seed::{log};
 use seed::prelude::web_sys;
 
 const MAX_POINTS: usize = 1000;
+const MAX_DURATION: f64 = 0.2;
 
 pub struct Points {
     pub x_start: u32,
@@ -25,7 +26,6 @@ pub struct Fractal {
     height: u32,
     y_curr: u32,
     iterations: u32,
-    max_duration: f64,
     res: Points,
     done: bool
 }
@@ -33,7 +33,8 @@ pub struct Fractal {
 
 impl Fractal {
     pub fn new(model: &Model) -> Fractal {
-        log!("creating fractal");
+        log!(format!("creating fractal with: x_max: {}, x_min: {}, y_max: {}, y_min: {}, c: {}",
+            model.x_max, model.x_min, model.y_max, model.y_min, Complex::new(model.c_real, model.c_imag)));
         let x_scale = (model.x_max - model.x_min) / model.width as f64;
         let y_scale = (model.y_max - model.y_min) / model.height as f64;
         Fractal {
@@ -48,7 +49,6 @@ impl Fractal {
             y_curr: 0,
             height: model.height,
             iterations: model.max_iterations,
-            max_duration: model.max_duration,
             res: Points{
                 x_start: 0,
                 y_start: 0,
@@ -121,7 +121,7 @@ impl Fractal {
 
 
             if count % 10 == 0 {
-                if performance.now() - start >= self.max_duration {
+                if performance.now() - start >= MAX_DURATION {
                     points_done = Some(count + 1);
                     break;
                 }

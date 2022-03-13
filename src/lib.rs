@@ -2,14 +2,19 @@
 #![allow(dead_code)]
 
 use seed::{prelude::*, *};
-
 mod complex;
+use complex::Complex;
 
 mod fractal;
+
+mod util;
+
 use fractal::Fractal;
 
 mod canvas;
+
 use canvas::Canvas;
+use crate::util::{get_u32_from_input, get_f64_from_input};
 
 
 const DEFAULT_XY: f64 = 1.5;
@@ -19,7 +24,7 @@ const DEFAULT_HEIGHT: u32 = 600;
 const DEFAULT_ITERATIONS: u32 = 400;
 const ENTER_KEY: &str = "Enter";
 const BACKGROUND_COLOR: &str = "#000000";
-const MAX_DURATION: f64 = 0.1;
+
 
 // ------ ------
 //     Init
@@ -42,7 +47,6 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
         canvas: None,
         fractal: None,
         paused: true,
-        max_duration: MAX_DURATION
     }
 }
 
@@ -64,7 +68,6 @@ pub struct Model {
     canvas: Option<Canvas>,
     fractal: Option<Fractal>,
     paused: bool,
-    max_duration: f64
 }
 
 // ------ ------
@@ -74,74 +77,17 @@ pub struct Model {
 
 #[derive(Clone)]
 enum Msg {
-    MaxXChanged(String),
-    MinXChanged(String),
-    MaxYChanged(String),
-    MinYChanged(String),
-    CRealChanged(String),
-    CImagChanged(String),
-    IterationsChanged(String),
     Start,
     Pause,
     Clear,
-    /*Edit,
+    Edit,
     SaveEdit,
     CancelEdit,
-     */
     Draw,
 }
 
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
-        // Msg::HeightChanged(height) => { log!("Message received: HeightChanged to {}",height); },
-        // Msg::WidthChanged(width)  => { log!("Message received: WidthChanged to {}",width); },
-        Msg::MaxXChanged(x_max) => {
-            log!("Message received: MaxXChanged to {}",x_max);
-            let x_max = x_max.parse::<f64>().unwrap_or(model.x_max);
-            if x_max != model.x_max && x_max >= model.x_min {
-                model.x_max = x_max;
-                orders.after_next_render(|_| Msg::Clear);
-            }
-        }
-        Msg::MinXChanged(x_min) => {
-            log!("Message received: MinXChanged to {}",x_min);
-            let x_min = x_min.parse::<f64>().unwrap_or(model.x_min);
-            if x_min != model.x_min && x_min <= model.x_max {
-                model.x_min = x_min;
-                orders.after_next_render(|_| Msg::Clear);
-            }
-        }
-        Msg::MaxYChanged(y_max) => {
-            log!("Message received: MaxYChanged to {}",y_max);
-            let y_max = y_max.parse::<f64>().unwrap_or(model.y_max);
-            if y_max != model.y_max && y_max >= model.y_min {
-                model.y_max = y_max;
-                orders.after_next_render(|_| Msg::Clear);
-            }
-        }
-        Msg::MinYChanged(y_min) => {
-            log!("Message received: MinYChanged to {}",y_min);
-            let y_min = y_min.parse::<f64>().unwrap_or(model.y_min);
-            if y_min != model.y_min && y_min <= model.y_max {
-                model.y_min = y_min;
-                orders.after_next_render(|_| Msg::Clear);
-            }
-        }
-        Msg::CRealChanged(c_real) => {
-            log!("Message received: CRealChanged to {}",c_real);
-            model.c_real = c_real.parse::<f64>().unwrap_or(model.c_real);
-            orders.after_next_render(|_| Msg::Clear);
-        }
-        Msg::CImagChanged(c_imag) => {
-            log!("Message received: CImagChanged to {}",c_imag);
-            model.c_imag = c_imag.parse::<f64>().unwrap_or(model.c_imag);
-            orders.after_next_render(|_| Msg::Clear);
-        }
-        Msg::IterationsChanged(iterations) => {
-            log!("Message received: IterationsChanged to {}",iterations);
-            model.max_iterations = iterations.parse::<u32>().unwrap_or(model.max_iterations);
-            orders.after_next_render(|_| Msg::Clear);
-        }
         Msg::Start => {
             log!("Message received: Start");
             if model.canvas.is_none() {
@@ -175,12 +121,83 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 model.canvas.as_ref().expect("unexpected empty canvas").clear_canvas(&model);
             }
         }
-/*
-        Msg::Edit => { log!("Message received: Edit"); }
-        Msg::SaveEdit => { log!("Message received: SaveEdit"); }
-        Msg::CancelEdit => { log!("Message received: SaveEdit"); }
 
- */
+        Msg::Edit => {
+            log!("Message received: Edit");
+            let document = window().document().expect("document not found");
+
+            let _ = document.get_element_by_id("iterations").expect("iterations not found")
+                .set_attribute(At::Value.as_str(), &model.max_iterations.to_string());
+
+            let _ = document.get_element_by_id("max_x").expect("max_x not found")
+                .set_attribute(At::Value.as_str(), &model.x_max.to_string());
+
+            let _ = document.get_element_by_id("min_x").expect("min_x not found")
+                .set_attribute(At::Value.as_str(), &model.x_min.to_string());
+
+            let _ = document.get_element_by_id("max_y").expect("max_y not found")
+                .set_attribute(At::Value.as_str(), &model.y_max.to_string());
+
+            let _ = document.get_element_by_id("min_y").expect("min_y not found")
+                .set_attribute(At::Value.as_str(), &model.y_min.to_string());
+
+            let _ = document.get_element_by_id("c_real").expect("c_real not found")
+                .set_attribute(At::Value.as_str(), &model.c_real.to_string());
+
+            let _ = document.get_element_by_id("c_imag").expect("c_imag not found")
+                .set_attribute(At::Value.as_str(), &model.c_imag.to_string());
+
+            document.get_element_by_id("edit_cntr").expect("edit_cntr not found")
+                .set_class_name("edit_cntr_visible");
+        }
+        Msg::SaveEdit => {
+            log!("Message received: SaveEdit");
+            let document = window().document().expect("document not found");
+            if let Some(value) = document.get_element_by_id("iterations").expect("iterations not found")
+                .get_attribute(At::Value.as_str()) {
+                model.max_iterations = value.parse::<u32>().unwrap_or(model.max_iterations);
+            }
+            if let Some(value) = get_u32_from_input("iterations") {
+                model.max_iterations = value;
+            }
+
+            if let Some(value) = get_f64_from_input("max_x") {
+                model.x_max = value;
+            }
+
+            if let Some(value) = get_f64_from_input("min_x") {
+                model.x_min = value;
+            }
+
+            if let Some(value) = get_f64_from_input("max_y") {
+                model.y_max = value;
+            }
+
+            if let Some(value) = get_f64_from_input("min_y") {
+                model.y_min = value;
+            }
+
+            if let Some(value) = get_f64_from_input("c_real") {
+                model.c_real = value;
+            }
+
+            if let Some(value) = get_f64_from_input("c_imag") {
+                model.c_imag = value;
+            }
+            log!(format!("Save: saved values x_max: {}, x_min: {}, y_max: {}, y_min: {}, c: {}",
+                model.x_max, model.x_min, model.y_max, model.y_min, Complex::new(model.c_real, model.c_imag)));
+            document.get_element_by_id("edit_cntr").expect("edit_cntr not found")
+                .set_class_name("edit_cntr_hidden");
+            // TODO: save to local storage
+            orders.after_next_render(|_| Msg::Clear);
+        }
+        Msg::CancelEdit => {
+            log!("Message received: SaveEdit");
+            window().document().expect("document not found")
+                .get_element_by_id("edit_cntr").expect("edit_cntr not found")
+                .set_class_name("edit_cntr_hidden");
+        }
+
         Msg::Draw => {
             // log!("Message received: Draw");
             if !model.paused {
@@ -194,7 +211,6 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 }
             }
         }
-
     }
 }
 
@@ -207,7 +223,8 @@ fn view(model: &Model) -> Node<Msg> {
     div![
         C!["outer_cntr"],
         h1!["Julia Sets"],
-        view_inputs(model),
+        view_buttons(model),
+        view_editor(),
         div![
             C!["canvas_cntr"],
             canvas![
@@ -223,10 +240,10 @@ fn view(model: &Model) -> Node<Msg> {
     ]
 }
 
-fn view_inputs(model: &Model) -> Vec<Node<Msg>> {
+fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
     vec![
         div![
-            C!["input_cntr"],
+            C!["button_cntr"],
             button![
                 C!["button"],
                 id!("start"),
@@ -247,6 +264,22 @@ fn view_inputs(model: &Model) -> Vec<Node<Msg>> {
                 ev(Ev::Click, |_| Msg::Clear),
                 "Clear"
             ],
+            button![
+                C!["button"],
+                id!("edit"),
+                ev(Ev::Click, |_| Msg::Edit),
+                "Edit"
+            ],
+        ]
+    ]
+}
+
+fn view_editor() -> Node<Msg> {
+    div![
+        C!["edit_cntr_hidden"],
+        id!("edit_cntr"),
+        div![
+            C!["input_cntr"],
             div![
                 C!["input_inner"],
                 label![
@@ -260,12 +293,11 @@ fn view_inputs(model: &Model) -> Vec<Node<Msg>> {
                         At::Type => "number",
                         At::Min =>"100",
                         At::Max =>"1000",
-                        At::Value => {model.max_iterations.to_string()},
+                        // At::Value => {model.max_iterations.to_string()},
                     },
-                    input_ev(Ev::Input, Msg::IterationsChanged),
                 ],
             ],
-            div![
+        div![
                 C!["input_inner"],
                 label![
                     C!["input_label"],
@@ -277,12 +309,11 @@ fn view_inputs(model: &Model) -> Vec<Node<Msg>> {
                         At::Name => "c_real",
                         At::Type => "number",
                         At::Step => "0.0000001"
-                        At::Value => {model.c_real.to_string()},
+                        //At::Value => {model.c_real.to_string()},
                     },
-                    input_ev(Ev::Input, Msg::CRealChanged),
                 ],
             ],
-            div![
+        div![
                 C!["input_inner"],
                 label![
                     C!["input_label"],
@@ -294,13 +325,12 @@ fn view_inputs(model: &Model) -> Vec<Node<Msg>> {
                         At::Name => "c_imag",
                         At::Type => "number",
                         At::Step => "0.0000001"
-                        At::Value => {model.c_imag.to_string()},
+                        //At::Value => {model.c_imag.to_string()},
                     },
-                    input_ev(Ev::Input, Msg::CImagChanged),
                 ],
             ],
-        ],
-        div![
+    ],
+    div![
             C!["input_cntr"],
             div![
                 C!["input_inner"],
@@ -314,9 +344,8 @@ fn view_inputs(model: &Model) -> Vec<Node<Msg>> {
                         At::Name => "max_x",
                         At::Type => "number",
                         At::Step => "0.01",
-                        At::Value => {model.x_max.to_string()},
+                        //At::Value => {model.x_max.to_string()},
                     },
-                    input_ev(Ev::Input, Msg::MaxXChanged),
                 ]
             ],
             div![
@@ -331,9 +360,8 @@ fn view_inputs(model: &Model) -> Vec<Node<Msg>> {
                         At::Name => "min_x",
                         At::Type => "number",
                         At::Step => "0.01",
-                        At::Value => {model.x_min.to_string()},
+                        //At::Value => {model.x_min.to_string()},
                     },
-                    input_ev(Ev::Input, Msg::MinXChanged),
                 ]
             ],
             div![
@@ -349,9 +377,8 @@ fn view_inputs(model: &Model) -> Vec<Node<Msg>> {
                         At::Name => "max_y",
                         At::Type => "number",
                         At::Step => "0.01",
-                        At::Value => {model.y_max.to_string()},
+                        //At::Value => {model.y_max.to_string()},
                     },
-                    input_ev(Ev::Input, Msg::MaxYChanged),
                 ]
             ],
             div![
@@ -366,14 +393,30 @@ fn view_inputs(model: &Model) -> Vec<Node<Msg>> {
                         At::Name => "min_y",
                         At::Type => "number",
                         At::Step => "0.01",
-                        At::Value => {model.y_min.to_string()},
+                        //At::Value => {model.y_min.to_string()},
                     },
-                    input_ev(Ev::Input, Msg::MinYChanged),
                 ]
+            ],
+        ],
+        div![
+            C!["button_cntr"],
+            button![
+                C!["button"],
+                id!("save"),
+                ev(Ev::Click, |_| Msg::SaveEdit),
+                "Save"
+            ],
+            button![
+                C!["button"],
+                id!("cancel"),
+                ev(Ev::Click, |_| Msg::CancelEdit),
+                "Cancel"
             ],
         ]
     ]
 }
+
+
 
 // ------ ------
 //     Start
