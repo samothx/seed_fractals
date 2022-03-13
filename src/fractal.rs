@@ -14,7 +14,7 @@ pub struct Points {
 }
 
 
-pub struct Fractal {
+pub struct JuliaSet {
     x_scale: f64,
     y_scale: f64,
     x_offset: f64,
@@ -31,20 +31,35 @@ pub struct Fractal {
 }
 
 
-impl Fractal {
-    pub fn new(model: &Model) -> Fractal {
+impl JuliaSet {
+    pub fn new(model: &Model) -> JuliaSet {
+        let c = Complex::new(model.config.c_real, model.config.c_imag);
+
         log!(format!("creating fractal with: x_max: {}, x_min: {}, y_max: {}, y_min: {}, c: {}",
-            model.config.x_max, model.config.x_min, model.config.y_max, model.config.y_min,
-            Complex::new(model.config.c_real, model.config.c_imag)));
+            model.config.x_max, model.config.x_min, model.config.y_max, model.config.y_min , c));
+
         let x_scale = (model.config.x_max - model.config.x_min) / model.width as f64;
         let y_scale = (model.config.y_max - model.config.y_min) / model.height as f64;
-        Fractal {
+
+        let c_norm = c.norm();
+        let mut max = c_norm;
+        loop {
+            let r_val = max * max - max;
+            if r_val < c_norm {
+                max += max / 2.0;
+            } else {
+                break;
+            }
+        }
+        log!(format!("max: {}", max));
+
+        JuliaSet {
             x_scale,
             y_scale,
             x_offset: model.config.x_min,
             y_offset: model.config.y_min,
-            c: Complex::new(model.config.c_real, model.config.c_imag),
-            max: model.config.c_real * model.config.c_real + model.config.c_imag * model.config.c_imag,
+            c,
+            max,
             x_curr: 0,
             width: model.width,
             y_curr: 0,

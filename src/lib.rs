@@ -10,7 +10,7 @@ use complex::Complex;
 
 mod fractal;
 
-use fractal::Fractal;
+use fractal::JuliaSet;
 
 mod util;
 
@@ -62,7 +62,7 @@ pub struct Model {
     config: Config,
     background_color: String,
     canvas: Option<Canvas>,
-    fractal: Option<Fractal>,
+    fractal: Option<JuliaSet>,
     mouse_drag: Option<MouseDrag>,
     paused: bool,
     edit_mode: bool,
@@ -128,7 +128,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 model.canvas = Some(canvas);
             }
             log!("Message received: Start, creating fractal");
-            let mut fractal = Fractal::new(&model);
+            let mut fractal = JuliaSet::new(&model);
             model.canvas.as_ref().expect("unexpected missing canvas")
                 .draw_results(fractal.calculate());
             model.fractal = Some(fractal);

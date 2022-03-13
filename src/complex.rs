@@ -18,6 +18,10 @@ impl Complex {
     pub fn square_length(&self) -> f64 {
         self.real * self.real + self.imag * self.imag
     }
+
+    pub fn norm(&self) -> f64 {
+        f64::sqrt(self.square_length())
+    }
 }
 
 impl Add for Complex {
