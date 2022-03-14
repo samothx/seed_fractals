@@ -341,14 +341,14 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                     return;
                 };
 
-                log!("setting new values");
+                log!(format!("setting new values, canvas coordinates: ({},{}), ({},{})", x_start, y_start, x_end, y_end ));
                 match model.active_config {
                     FractalType::JuliaSet => {
                         let x_scale = (model.config.julia_set_cfg.x_max.real() - model.config.julia_set_cfg.x_min.real()) / model.width as f64;
-                        set_f64_on_input("max_real", x_end as f64 * x_scale + model.config.julia_set_cfg.x_max.real());
+                        set_f64_on_input("max_real", x_end as f64 * x_scale + model.config.julia_set_cfg.x_min.real());
                         set_f64_on_input("min_real", x_start as f64 * x_scale + model.config.julia_set_cfg.x_min.real());
                         let x_scale = (model.config.julia_set_cfg.x_max.imag() - model.config.julia_set_cfg.x_min.imag()) / model.height as f64;
-                        set_f64_on_input("max_imag", y_end as f64 * x_scale + model.config.julia_set_cfg.x_max.imag());
+                        set_f64_on_input("max_imag", y_end as f64 * x_scale + model.config.julia_set_cfg.x_min.imag());
                         set_f64_on_input("min_imag", y_start as f64 * x_scale + model.config.julia_set_cfg.x_min.imag());
                     },
                     FractalType::Mandelbrot => {
