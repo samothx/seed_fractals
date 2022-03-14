@@ -3,7 +3,7 @@ use seed::{log};
 // use wasm_bindgen::prelude::web_sys;
 use seed::prelude::web_sys;
 
-const MAX_POINTS: usize = 1000;
+const MAX_POINTS: usize = 5000;
 const MAX_DURATION: f64 = 0.3;
 
 pub struct Points {
@@ -38,25 +38,15 @@ impl JuliaSet {
 
         let scale_real = (model.config.julia_set_cfg.x_max.real() - model.config.julia_set_cfg.x_min.real()) / model.width as f64;
         let scale_imag = (model.config.julia_set_cfg.x_max.imag() - model.config.julia_set_cfg.x_min.imag()) / model.height as f64;
+        let max = JuliaSet::find_escape_radius(model.config.julia_set_cfg.c.norm());
 
-        let c_norm = model.config.julia_set_cfg.c.norm();
-        let mut max = c_norm;
-        loop {
-            let r_val = max * max - max;
-            if r_val < c_norm {
-                max += max / 2.0;
-            } else {
-                break;
-            }
-        }
-        log!(format!("max: {}", max));
 
         JuliaSet {
             scale_real,
             scale_imag,
             offset: model.config.julia_set_cfg.x_min,
             c: model.config.julia_set_cfg.c,
-            max,
+            max: max * max,
             x_curr: 0,
             width: model.width,
             y_curr: 0,
@@ -95,7 +85,7 @@ impl JuliaSet {
             if let Some(last) = last {
                 last
             } else {
-                0
+                self.iterations + 1
             }
         }
     }
@@ -113,7 +103,11 @@ impl JuliaSet {
 
         let mut x = self.x_curr;
         let mut y = self.y_curr;
+
         let mut points_done : Option<usize> = None;
+        let mut last_check = 0u32;
+        let mut iterations = 0u32;
+
         for count in 0..self.res.values.len() {
             let calc = Complex::new(   x as f64 * self.scale_real + self.offset.real(),
                                                 y as f64 * self.scale_imag + self.offset.imag());
@@ -132,8 +126,9 @@ impl JuliaSet {
                 }
             }
 
-
-            if count % 10 == 0 {
+            iterations += if curr == 0 { 1 } else { curr };
+            if iterations - last_check > 100 {
+                last_check = iterations;
                 if performance.now() - start >= MAX_DURATION {
                     points_done = Some(count + 1);
                     break;
@@ -150,5 +145,53 @@ impl JuliaSet {
         self.y_curr = y;
 
         &self.res
+    }
+
+    fn find_escape_radius(c_norm: f64) -> f64 {
+        // Newton iteration
+        let mut radius = 2.0;
+
+        // eprintln!("find_escape_radius({}): c_norm: {}, start: {}", c, c_norm, radius);
+        for _idx in 0..100 {
+            let delta_r = radius * radius - radius - c_norm;
+
+            if delta_r >= 0.0 && delta_r.abs() <= 0.01 {
+                // eprintln!("find_escape_radius({}): loop: {} - done", c, idx);
+                break;
+            }
+            let gradient =  2.0 * radius - 1.0;
+            if gradient == 0.0 {
+                log!("stuck on the zero gradient");
+                return 2.0;
+            }
+
+            let dx = -delta_r / gradient;
+
+            // eprintln!("find_escape_radius({}): loop: {} radius: {}, gradient: {} delta: {}, increment: {}",
+            //          c, idx, radius, gradient, delta_r, dx);
+            radius += dx;
+        }
+        // eprintln!("find_escape_radius({}): terminating with radius: {}, delta: {}",
+        //           c, radius, (radius * radius - radius - c_norm).abs());
+        radius
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::JuliaSet;
+    use crate::complex::Complex;
+
+    #[test]
+    fn test_find_escape_radius() {
+        let c_norm = Complex::new(0.3, -0.5 ).norm();
+        let radius = JuliaSet::find_escape_radius(c);
+        assert!(radius * radius - radius >= c_norm);
+        assert!(radius * radius - radius - c_norm <= 0.01);
+
+        let c_norm = Complex::new(1.0, -1.0 ).norm();
+        let radius = JuliaSet::find_escape_radius(c);
+        assert!(radius * radius - radius >= c_norm);
+        assert!(radius * radius - radius - c_norm <= 0.01);
     }
 }
