@@ -4,7 +4,7 @@ use seed::{log};
 use seed::prelude::web_sys;
 
 const MAX_POINTS: usize = 1000;
-const MAX_DURATION: f64 = 0.2;
+const MAX_DURATION: f64 = 0.3;
 
 pub struct Points {
     pub x_start: u32,
@@ -15,10 +15,9 @@ pub struct Points {
 
 
 pub struct JuliaSet {
-    x_scale: f64,
-    y_scale: f64,
-    x_offset: f64,
-    y_offset: f64,
+    scale_real: f64,
+    scale_imag: f64,
+    offset: Complex,
     c: Complex,
     max: f64,
     x_curr: u32,
@@ -33,15 +32,14 @@ pub struct JuliaSet {
 
 impl JuliaSet {
     pub fn new(model: &Model) -> JuliaSet {
-        let c = Complex::new(model.config.c_real, model.config.c_imag);
 
-        log!(format!("creating fractal with: x_max: {}, x_min: {}, y_max: {}, y_min: {}, c: {}",
-            model.config.x_max, model.config.x_min, model.config.y_max, model.config.y_min , c));
+        log!(format!("creating fractal with: x_max: {}, x_min: {}, c: {}",
+            model.config.julia_set_cfg.x_max, model.config.julia_set_cfg.x_min , model.config.julia_set_cfg.c));
 
-        let x_scale = (model.config.x_max - model.config.x_min) / model.width as f64;
-        let y_scale = (model.config.y_max - model.config.y_min) / model.height as f64;
+        let scale_real = (model.config.julia_set_cfg.x_max.real() - model.config.julia_set_cfg.x_min.real()) / model.width as f64;
+        let scale_imag = (model.config.julia_set_cfg.x_max.imag() - model.config.julia_set_cfg.x_min.imag()) / model.height as f64;
 
-        let c_norm = c.norm();
+        let c_norm = model.config.julia_set_cfg.c.norm();
         let mut max = c_norm;
         loop {
             let r_val = max * max - max;
@@ -54,17 +52,16 @@ impl JuliaSet {
         log!(format!("max: {}", max));
 
         JuliaSet {
-            x_scale,
-            y_scale,
-            x_offset: model.config.x_min,
-            y_offset: model.config.y_min,
-            c,
+            scale_real,
+            scale_imag,
+            offset: model.config.julia_set_cfg.x_min,
+            c: model.config.julia_set_cfg.c,
             max,
             x_curr: 0,
             width: model.width,
             y_curr: 0,
             height: model.height,
-            iterations: model.config.max_iterations,
+            iterations: model.config.julia_set_cfg.max_iterations,
             res: Points{
                 x_start: 0,
                 y_start: 0,
@@ -79,8 +76,8 @@ impl JuliaSet {
         self.done
     }
 
-    fn iterate(&self, x: f64, y: f64) -> u32 {
-        let mut curr = Complex::new(x,y);
+    fn iterate(&self, x: &Complex) -> u32 {
+        let mut curr = *x;
         if curr.square_length() >= self.max {
             0
         } else {
@@ -118,9 +115,9 @@ impl JuliaSet {
         let mut y = self.y_curr;
         let mut points_done : Option<usize> = None;
         for count in 0..self.res.values.len() {
-            let x_calc = x as f64 * self.x_scale + self.x_offset;
-            let y_calc = y as f64 * self.y_scale + self.y_offset;
-            let curr = self.iterate(x_calc, y_calc);
+            let calc = Complex::new(   x as f64 * self.scale_real + self.offset.real(),
+                                                y as f64 * self.scale_imag + self.offset.imag());
+            let curr = self.iterate(&calc);
             self.res.values[count] = curr;
 
             if x < self.width {

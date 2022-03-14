@@ -1,7 +1,8 @@
 use std::ops::{MulAssign, Mul, AddAssign, Add};
 use std::fmt::{Display, Formatter};
+use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Complex {
     real: f64,
     imag: f64,
@@ -15,10 +16,19 @@ impl Complex {
         }
     }
 
+    #[inline]
+    pub fn real(&self) -> f64 { self.real }
+    #[inline]
+    pub fn imag(&self) -> f64 { self.imag }
+    #[inline]
+    pub fn set_real(&mut self, real: f64)  { self.real = real; }
+    #[inline]
+    pub fn set_imag(&mut self, imag: f64)  { self.imag = imag; }
+    #[inline]
     pub fn square_length(&self) -> f64 {
         self.real * self.real + self.imag * self.imag
     }
-
+    #[inline]
     pub fn norm(&self) -> f64 {
         f64::sqrt(self.square_length())
     }

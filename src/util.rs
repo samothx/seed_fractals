@@ -1,8 +1,6 @@
+#[allow(clippy::wildcard_imports)]
 use seed::{prelude::*, *};
-use seed::window;
-use seed::prelude::{web_sys::HtmlInputElement};
-use seed::log;
-
+use seed::prelude::web_sys::HtmlInputElement;
 
 pub fn set_f64_on_input(name: &str,value: f64) {
     if let Ok(element) = window().document().expect("html document not found")

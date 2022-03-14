@@ -1,10 +1,10 @@
 
-use crate::{Model, BACKGROUND_COLOR};
+use crate::{Model, BACKGROUND_COLOR, FractalType};
 use seed::log;
 
 use seed::{prelude::*, *};
 
-use crate::fractal::Points;
+use crate::julia_set::Points;
 use seed::prelude::web_sys::{HtmlCanvasElement, ImageData};
 use seed::prelude::JsValue;
 
@@ -31,7 +31,10 @@ impl Canvas {
     pub fn new(model: &Model) -> Canvas {
         Canvas {
             canvas: canvas("canvas").expect("Canvas not found"),
-            steps: model.config.max_iterations,
+            steps: match model.active_config {
+                FractalType::JuliaSet => model.config.julia_set_cfg.max_iterations,
+                FractalType::Mandelbrot => model.config.mandelbrot_cfg.max_iterations
+            },
             width: model.width,
         }
     }
@@ -83,18 +86,8 @@ impl Canvas {
         });
     }
 
-    pub fn draw_frame(&self, x_start: i32,y_start: i32, x_end: i32, y_end: i32) -> ImageData {
+    pub fn draw_frame(&self, x_start: u32,y_start: u32, x_end: u32, y_end: u32) -> ImageData {
         // log!(format!("draw_frame: ({},{}),({},{})", x_start,y_start, x_end, y_end));
-        let bounding_rect = self.canvas.get_bounding_client_rect();
-        let scale_x: f64 = f64::from(self.canvas.width()) / bounding_rect.width();
-        let scale_y: f64 = f64::from(self.canvas.height()) / bounding_rect.height();
-        let canvas_left: f64 = (f64::from(x_start) - bounding_rect.left()) * scale_x;
-        let canvas_top: f64 = (f64::from(y_start) - bounding_rect.top()) * scale_y;
-        let canvas_right: f64 = (f64::from(x_end) - bounding_rect.left()) * scale_x;
-        let canvas_bottom: f64 = (f64::from(y_end) - bounding_rect.top()) * scale_y;
-
-        // log!(format!("draw_frame: scale_x: {}, scale_y: {}", scale_x, scale_y));
-        // if canvas_left - canvas_right > 0.0 || canvas_top - canvas_bottom >= 0.0 {
 
         let ctx = seed::canvas_context_2d(&self.canvas);
 
@@ -113,13 +106,14 @@ impl Canvas {
                 .expect("failed to retrieve image data")
                 .dyn_into::<ImageData>().expect("Failed to cast to ImageData");
 
+
         ctx.begin_path();
         ctx.set_stroke_style(&JsValue::from_str("#FFFFFF"));
-        ctx.move_to(canvas_left, canvas_top);
-        ctx.line_to(canvas_right, canvas_top);
-        ctx.line_to(canvas_right, canvas_bottom);
-        ctx.line_to(canvas_left, canvas_bottom);
-        ctx.line_to(canvas_left, canvas_top);
+        ctx.move_to(x_start.into(), y_start.into());
+        ctx.line_to(x_end.into(), y_start.into());
+        ctx.line_to(x_end.into(), y_end.into());
+        ctx.line_to(x_start.into(), y_end.into());
+        ctx.line_to(x_start.into(), y_start.into());
         ctx.stroke();
         image_data
     }
@@ -133,14 +127,18 @@ impl Canvas {
             0.0).expect("cannot draw image data");
     }
 
-    pub fn viewport_to_canvas_coords(&self, x_start: i32,y_start: i32, x_end: i32, y_end: i32) -> (f64,f64,f64,f64) {
+    pub fn viewport_to_canvas_coords(&self, x: i32, y: i32) -> Option<(u32,u32)> {
         let bounding_rect = self.canvas.get_bounding_client_rect();
         let scale_x: f64 = f64::from(self.canvas.width()) / bounding_rect.width();
         let scale_y: f64 = f64::from(self.canvas.height()) / bounding_rect.height();
-        (   (f64::from(x_start) - bounding_rect.left()) * scale_x,
-            (f64::from(y_start) - bounding_rect.top()) * scale_y,
-            (f64::from(x_end) - bounding_rect.left()) * scale_x,
-            (f64::from(y_end) - bounding_rect.top()) * scale_y)
+        let canvas_x  = ((f64::from(x ) - bounding_rect.left()) * scale_x) as i32;
+        let canvas_y = ((f64::from(y) - bounding_rect.top()) * scale_y) as i32;
+        if canvas_x >= 0 &&  canvas_x < self.canvas.width() as i32 &&
+            canvas_y >= 0 && canvas_y < self.canvas.height() as i32 {
+            Some((canvas_x as u32, canvas_y as u32))
+        } else {
+            None
+        }
     }
 
     fn iterations_as_hue_to_rgb(&self, iterations: u32) -> String {
