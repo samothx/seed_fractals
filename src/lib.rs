@@ -8,6 +8,9 @@ mod complex;
 
 use complex::Complex;
 
+mod fractal;
+use fractal::Fractal;
+
 mod julia_set;
 
 use julia_set::JuliaSet;
@@ -63,7 +66,7 @@ pub struct Model {
     config: Config,
     background_color: String,
     canvas: Option<Canvas>,
-    fractal: Option<JuliaSet>,
+    fractal: Option<Box<dyn Fractal>>,
     mouse_drag: Option<MouseDrag>,
     paused: bool,
     edit_mode: bool,
@@ -145,9 +148,9 @@ enum Msg {
     Pause,
     Clear,
     TypeChanged,
-    EditJulaSet,
-    SaveEditJuliaSet,
-    CancelEditJuliaSet,
+    Edit,
+    SaveEdit,
+    CancelEdit,
     Draw,
     MouseDown(web_sys::MouseEvent),
     MouseMove(web_sys::MouseEvent),
@@ -164,11 +167,20 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 model.canvas = Some(canvas);
             }
             log!("Message received: Start, creating fractal");
-            let mut fractal = JuliaSet::new(&model);
-            model.canvas.as_ref().expect("unexpected missing canvas")
-                .draw_results(fractal.calculate());
-            model.fractal = Some(fractal);
+
+            match model.active_config {
+                FractalType::JuliaSet => {
+                    let mut fractal = JuliaSet::new(&model);
+                    model.canvas.as_ref().expect("unexpected missing canvas")
+                        .draw_results(fractal.calculate());
+                    model.fractal = Some(Box::new(fractal));
+                }
+                FractalType::Mandelbrot => {
+                    todo!()
+                }
+            }
             model.paused = false;
+
             orders.after_next_render(|_| Msg::Draw);
         }
         Msg::Pause => {
@@ -203,76 +215,98 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             };
         },
 
-        Msg::EditJulaSet => {
+        Msg::Edit => {
             log!("Message received: Edit");
-            model.edit_mode = true;
-            set_u32_on_input("iterations",model.config.julia_set_cfg.max_iterations);
-            set_f64_on_input("max_real", model.config.julia_set_cfg.x_max.real());
-            set_f64_on_input("min_real", model.config.julia_set_cfg.x_min.real());
-            set_f64_on_input("max_imag", model.config.julia_set_cfg.x_max.imag());
-            set_f64_on_input("min_imag", model.config.julia_set_cfg.x_min.imag());
-            set_f64_on_input("c_real", model.config.julia_set_cfg.c.real());
-            set_f64_on_input("c_imag", model.config.julia_set_cfg.c.imag());
+            match model.active_config {
+                FractalType::JuliaSet => {
+                    model.edit_mode = true;
 
-            window().document().expect("document not found").get_element_by_id("edit_cntr").expect("edit_cntr not found")
-                .set_class_name("edit_cntr_visible");
+                    set_u32_on_input("iterations", model.config.julia_set_cfg.max_iterations);
+                    set_f64_on_input("max_real", model.config.julia_set_cfg.x_max.real());
+                    set_f64_on_input("min_real", model.config.julia_set_cfg.x_min.real());
+                    set_f64_on_input("max_imag", model.config.julia_set_cfg.x_max.imag());
+                    set_f64_on_input("min_imag", model.config.julia_set_cfg.x_min.imag());
+                    set_f64_on_input("c_real", model.config.julia_set_cfg.c.real());
+                    set_f64_on_input("c_imag", model.config.julia_set_cfg.c.imag());
+
+                    window().document().expect("document not found").get_element_by_id("edit_cntr").expect("edit_cntr not found")
+                        .set_class_name("edit_cntr_visible");
+                },
+                FractalType::Mandelbrot => {
+                    todo!()
+                }
+            }
         },
 
-        Msg::SaveEditJuliaSet => {
+        Msg::SaveEdit => {
             log!("Message received: SaveEdit");
             model.edit_mode = false;
-            let document = window().document().expect("document not found");
 
-            if let Some(value) = get_u32_from_input("iterations") {
-                model.config.julia_set_cfg.max_iterations = value;
+            match model.active_config {
+                FractalType::JuliaSet => {
+                    let document = window().document().expect("document not found");
+
+                    if let Some(value) = get_u32_from_input("iterations") {
+                        model.config.julia_set_cfg.max_iterations = value;
+                    }
+
+                    if let Some(value) = get_f64_from_input("max_real") {
+                        model.config.julia_set_cfg.x_max.set_real(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("min_real") {
+                        model.config.julia_set_cfg.x_min.set_real(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("max_imag") {
+                        model.config.julia_set_cfg.x_max.set_imag(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("min_imag") {
+                        model.config.julia_set_cfg.x_min.set_imag(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("c_real") {
+                        model.config.julia_set_cfg.c.set_real(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("c_imag") {
+                        model.config.julia_set_cfg.c.set_imag(value);
+                    }
+
+                    LocalStorage::insert(STORAGE_KEY, &model.config).expect("save data to LocalStorage");
+
+                    document.get_element_by_id("edit_cntr").expect("edit_cntr not found")
+                        .set_class_name("edit_cntr_hidden");
+                },
+                FractalType::Mandelbrot => {
+                    todo!()
+                }
             }
-
-            if let Some(value) = get_f64_from_input("max_real") {
-                model.config.julia_set_cfg.x_max.set_real(value);
-            }
-
-            if let Some(value) = get_f64_from_input("min_real") {
-                model.config.julia_set_cfg.x_min.set_real(value);
-            }
-
-            if let Some(value) = get_f64_from_input("max_imag") {
-                model.config.julia_set_cfg.x_max.set_imag( value);
-            }
-
-            if let Some(value) = get_f64_from_input("min_imag") {
-                model.config.julia_set_cfg.x_min.set_imag(value);
-            }
-
-            if let Some(value) = get_f64_from_input("c_real") {
-                model.config.julia_set_cfg.c.set_real(value);
-            }
-
-            if let Some(value) = get_f64_from_input("c_imag") {
-                model.config.julia_set_cfg.c.set_imag(value);
-            }
-
-            LocalStorage::insert(STORAGE_KEY, &model.config).expect("save data to LocalStorage");
-
-            document.get_element_by_id("edit_cntr").expect("edit_cntr not found")
-                .set_class_name("edit_cntr_hidden");
             // TODO: save to local storage
             orders.after_next_render(|_| Msg::Clear);
         }
-        Msg::CancelEditJuliaSet => {
+        Msg::CancelEdit => {
             log!("Message received: SaveEdit");
             model.edit_mode = false;
-            window().document().expect("document not found")
-                .get_element_by_id("edit_cntr").expect("edit_cntr not found")
-                .set_class_name("edit_cntr_hidden");
+            match model.active_config {
+                FractalType::JuliaSet => {
+                    window().document().expect("document not found")
+                        .get_element_by_id("edit_cntr").expect("edit_cntr not found")
+                        .set_class_name("edit_cntr_hidden");
+                },
+                FractalType::Mandelbrot => {
+                    todo!()
+                }
+            }
         }
-
         Msg::Draw => {
             // log!("Message received: Draw");
             if !model.paused {
+                let fractal = model.fractal.as_mut().expect("unexpected missing fractal");
                 model.canvas.as_ref().expect("unexpected missing canvas")
-                    .draw_results(model.fractal.as_mut().expect("unexpectted missing fractal")
-                        .calculate());
-                if !model.fractal.as_ref().expect("unexpectted missing fractal").is_done() {
+                    .draw_results(fractal.calculate());
+                if !fractal.is_done() {
                     orders.after_next_render(|_| Msg::Draw);
                 } else {
                     model.paused = true;
@@ -441,7 +475,7 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
             button![
                 C!["button"],
                 id!("edit"),
-                ev(Ev::Click, |_| Msg::EditJulaSet),
+                ev(Ev::Click, |_| Msg::Edit),
                 "Edit"
             ],
             label![
@@ -597,13 +631,13 @@ fn view_julia_set_cfg_editor() -> Node<Msg> {
             button![
                 C!["button"],
                 id!("save"),
-                ev(Ev::Click, |_| Msg::SaveEditJuliaSet),
+                ev(Ev::Click, |_| Msg::SaveEdit),
                 "Save"
             ],
             button![
                 C!["button"],
                 id!("cancel"),
-                ev(Ev::Click, |_| Msg::CancelEditJuliaSet),
+                ev(Ev::Click, |_| Msg::CancelEdit),
                 "Cancel"
             ],
         ]

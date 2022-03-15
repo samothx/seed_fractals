@@ -1,17 +1,10 @@
-use super::{Model, complex::Complex};
 use seed::{log};
 // use wasm_bindgen::prelude::web_sys;
 use seed::prelude::web_sys;
 
-const MAX_POINTS: usize = 5000;
-const MAX_DURATION: f64 = 0.3;
+use super::{Model, complex::Complex, fractal::{Points, Fractal} };
 
-pub struct Points {
-    pub x_start: u32,
-    pub y_start: u32,
-    pub num_points: usize,
-    pub values: [u32;MAX_POINTS],
-}
+const MAX_DURATION: f64 = 0.3;
 
 
 pub struct JuliaSet {
@@ -52,19 +45,11 @@ impl JuliaSet {
             y_curr: 0,
             height: model.height,
             iterations: model.config.julia_set_cfg.max_iterations,
-            res: Points{
-                x_start: 0,
-                y_start: 0,
-                num_points: 0,
-                values: [0;MAX_POINTS]
-            },
+            res: Points::default(),
             done: false
         }
     }
 
-    pub fn is_done(&self) -> bool {
-        self.done
-    }
 
     fn iterate(&self, x: &Complex) -> u32 {
         let mut curr = *x;
@@ -90,62 +75,6 @@ impl JuliaSet {
         }
     }
 
-    pub fn calculate<'a>(&'a mut self) -> &'a Points {
-        let performance = web_sys::window().expect("Window not found")
-            .performance()
-            .expect("performance should be available");
-
-        let start = performance.now();
-
-        self.res.x_start = self.x_curr;
-        self.res.y_start = self.y_curr;
-        self.res.num_points = 0;
-
-        let mut x = self.x_curr;
-        let mut y = self.y_curr;
-
-        let mut points_done : Option<usize> = None;
-        let mut last_check = 0u32;
-        let mut iterations = 0u32;
-
-        for count in 0..self.res.values.len() {
-            let calc = Complex::new(   x as f64 * self.scale_real + self.offset.real(),
-                                                y as f64 * self.scale_imag + self.offset.imag());
-            let curr = self.iterate(&calc);
-            self.res.values[count] = curr;
-
-            if x < self.width {
-                x += 1;
-            } else {
-                x = 0;
-                y += 1;
-                if y >= self.height {
-                    self.done = true;
-                    points_done = Some(count + 1);
-                    break;
-                }
-            }
-
-            iterations += if curr == 0 { 1 } else { curr };
-            if iterations - last_check > 100 {
-                last_check = iterations;
-                if performance.now() - start >= MAX_DURATION {
-                    points_done = Some(count + 1);
-                    break;
-                }
-            }
-        }
-        if let Some(points) = points_done {
-            self.res.num_points = points;
-        } else {
-            self.res.num_points = MAX_POINTS;
-        }
-
-        self.x_curr = x;
-        self.y_curr = y;
-
-        &self.res
-    }
 
     fn find_escape_radius(c_norm: f64) -> f64 {
         // Newton iteration
@@ -176,6 +105,73 @@ impl JuliaSet {
         radius
     }
 }
+
+impl Fractal for JuliaSet {
+    fn calculate<'a>(&'a mut self) -> &'a Points {
+        let performance = web_sys::window().expect("Window not found")
+            .performance()
+            .expect("performance should be available");
+
+        let start = performance.now();
+
+        self.res.x_start = self.x_curr;
+        self.res.y_start = self.y_curr;
+        self.res.num_points = 0;
+
+        let mut x = self.x_curr;
+        let mut y = self.y_curr;
+
+        let mut points_done : Option<usize> = None;
+        let mut last_check = 0u32;
+        let mut iterations = 0u32;
+
+        for count in 0..self.res.values.len() {
+            let calc = Complex::new(   x as f64 * self.scale_real + self.offset.real(),
+                                       y as f64 * self.scale_imag + self.offset.imag());
+            let curr = self.iterate(&calc);
+            self.res.values[count] = curr;
+
+            if x < self.width {
+                x += 1;
+            } else {
+                x = 0;
+                y += 1;
+                if y >= self.height {
+                    self.done = true;
+                    points_done = Some(count + 1);
+                    break;
+                }
+            }
+
+            iterations += if curr == 0 { 1 } else { curr };
+            if iterations - last_check > 100 {
+                last_check = iterations;
+                if performance.now() - start >= MAX_DURATION {
+                    points_done = Some(count + 1);
+                    break;
+                }
+            }
+        }
+        if let Some(points) = points_done {
+            self.res.num_points = points;
+        } else {
+            self.res.num_points = self.res.values.len() + 1;
+        }
+
+        self.x_curr = x;
+        self.y_curr = y;
+
+        &self.res
+    }
+
+    fn is_done(&self) -> bool {
+        self.done
+    }
+
+}
+
+
+
 
 #[cfg(test)]
 mod test {

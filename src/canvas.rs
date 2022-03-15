@@ -4,7 +4,7 @@ use seed::log;
 
 use seed::{prelude::*, *};
 
-use crate::julia_set::Points;
+use super::fractal::Points;
 use seed::prelude::web_sys::{HtmlCanvasElement, ImageData};
 use seed::prelude::JsValue;
 
