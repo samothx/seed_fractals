@@ -90,6 +90,7 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
     ]]
 }
 
+#[allow(clippy::too_many_lines)]
 fn view_julia_set_cfg_editor() -> Node<Msg> {
     div![
         C!["edit_cntr_hidden"],
@@ -245,6 +246,7 @@ fn view_julia_set_cfg_editor() -> Node<Msg> {
     ]
 }
 
+#[allow(clippy::too_many_lines)]
 fn view_mandelbrot_cfg_editor() -> Node<Msg> {
     div![
         C!["edit_cntr_hidden"],

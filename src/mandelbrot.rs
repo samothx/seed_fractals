@@ -22,7 +22,7 @@ pub struct Mandelbrot {
 }
 
 impl Mandelbrot {
-    pub fn new(model: &Model) -> Mandelbrot {
+    pub fn new(model: &Model) -> Self {
         log!(format!(
             "creating fractal with: x_max: {}, x_min: {}",
             model.config.mandelbrot_cfg.c_max, model.config.mandelbrot_cfg.c_min,
@@ -30,12 +30,12 @@ impl Mandelbrot {
 
         let scale_real = (model.config.mandelbrot_cfg.c_max.real()
             - model.config.mandelbrot_cfg.c_min.real())
-            / model.width as f64;
+            / f64::from(model.width);
         let scale_imag = (model.config.mandelbrot_cfg.c_max.imag()
             - model.config.mandelbrot_cfg.c_min.imag())
-            / model.height as f64;
+            / f64::from(model.height);
 
-        Mandelbrot {
+        Self {
             scale_real,
             scale_imag,
             offset: model.config.mandelbrot_cfg.c_min,
@@ -63,16 +63,12 @@ impl Mandelbrot {
         }
 
         // log!(format!("iterate: end:  {} norm: {} last: {:?}", curr, curr.square_length(), last));
-        if let Some(last) = last {
-            last
-        } else {
-            self.iterations + 1
-        }
+        last.map_or(self.iterations + 1, |last| last)
     }
 }
 
 impl Fractal for Mandelbrot {
-    fn calculate<'a>(&'a mut self) -> &'a Points {
+    fn calculate(&mut self) -> &Points {
         let performance = web_sys::window()
             .expect("Window not found")
             .performance()
@@ -93,8 +89,8 @@ impl Fractal for Mandelbrot {
 
         for count in 0..self.res.values.len() {
             let calc = Complex::new(
-                x as f64 * self.scale_real + self.offset.real(),
-                y as f64 * self.scale_imag + self.offset.imag(),
+                f64::from(x).mul_add(self.scale_real,self.offset.real()),
+                f64::from(y).mul_add(self.scale_imag,self.offset.imag()),
             );
             let curr = self.iterate(&calc);
             self.res.values[count] = curr;

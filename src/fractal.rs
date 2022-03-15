@@ -19,6 +19,6 @@ impl Default for Points {
 }
 
 pub trait Fractal {
-    fn calculate<'a>(&'a mut self) -> &'a Points;
+    fn calculate(&mut self) -> &Points;
     fn is_done(&self) -> bool;
 }
