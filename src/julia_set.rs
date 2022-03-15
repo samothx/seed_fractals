@@ -1,15 +1,13 @@
 use seed::log;
 // use wasm_bindgen::prelude::web_sys;
+use super::{util::find_escape_radius, MAX_DURATION};
 use seed::prelude::web_sys;
-use super::{MAX_DURATION, util::find_escape_radius};
 
 use super::{
     complex::Complex,
     fractal::{Fractal, Points},
     Model,
 };
-
-
 
 pub struct JuliaSet {
     scale_real: f64,
@@ -78,7 +76,6 @@ impl JuliaSet {
             self.iterations + 1
         }
     }
-
 }
 
 impl Fractal for JuliaSet {
@@ -146,4 +143,3 @@ impl Fractal for JuliaSet {
         self.done
     }
 }
-

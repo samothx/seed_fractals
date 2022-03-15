@@ -1,6 +1,6 @@
 use seed::{log, prelude::web_sys};
 
-use super::{MAX_DURATION, util::find_escape_radius};
+use super::{util::find_escape_radius, MAX_DURATION};
 
 use super::{
     complex::Complex,
@@ -25,8 +25,7 @@ impl Mandelbrot {
     pub fn new(model: &Model) -> Mandelbrot {
         log!(format!(
             "creating fractal with: x_max: {}, x_min: {}",
-            model.config.mandelbrot_cfg.c_max,
-            model.config.mandelbrot_cfg.c_min,
+            model.config.mandelbrot_cfg.c_max, model.config.mandelbrot_cfg.c_min,
         ));
 
         let scale_real = (model.config.mandelbrot_cfg.c_max.real()
@@ -49,7 +48,7 @@ impl Mandelbrot {
             done: false,
         }
     }
-    
+
     fn iterate(&self, c: &Complex) -> u32 {
         let max = find_escape_radius(c.norm()).powi(2);
         let mut x = Complex::new(0.0, 0.0);
@@ -75,62 +74,62 @@ impl Mandelbrot {
 impl Fractal for Mandelbrot {
     fn calculate<'a>(&'a mut self) -> &'a Points {
         let performance = web_sys::window()
-        .expect("Window not found")
-        .performance()
-        .expect("performance should be available");
+            .expect("Window not found")
+            .performance()
+            .expect("performance should be available");
 
-    let start = performance.now();
+        let start = performance.now();
 
-    self.res.x_start = self.x_curr;
-    self.res.y_start = self.y_curr;
-    self.res.num_points = 0;
+        self.res.x_start = self.x_curr;
+        self.res.y_start = self.y_curr;
+        self.res.num_points = 0;
 
-    let mut x = self.x_curr;
-    let mut y = self.y_curr;
+        let mut x = self.x_curr;
+        let mut y = self.y_curr;
 
-    let mut points_done: Option<usize> = None;
-    let mut last_check = 0u32;
-    let mut iterations = 0u32;
+        let mut points_done: Option<usize> = None;
+        let mut last_check = 0u32;
+        let mut iterations = 0u32;
 
-    for count in 0..self.res.values.len() {
-        let calc = Complex::new(
-            x as f64 * self.scale_real + self.offset.real(),
-            y as f64 * self.scale_imag + self.offset.imag(),
-        );
-        let curr = self.iterate(&calc);
-        self.res.values[count] = curr;
+        for count in 0..self.res.values.len() {
+            let calc = Complex::new(
+                x as f64 * self.scale_real + self.offset.real(),
+                y as f64 * self.scale_imag + self.offset.imag(),
+            );
+            let curr = self.iterate(&calc);
+            self.res.values[count] = curr;
 
-        if x < self.width {
-            x += 1;
+            if x < self.width {
+                x += 1;
+            } else {
+                x = 0;
+                y += 1;
+                if y >= self.height {
+                    self.done = true;
+                    points_done = Some(count + 1);
+                    break;
+                }
+            }
+
+            iterations += if curr == 0 { 1 } else { curr };
+            if iterations - last_check > 100 {
+                last_check = iterations;
+                if performance.now() - start >= MAX_DURATION {
+                    points_done = Some(count + 1);
+                    break;
+                }
+            }
+        }
+        if let Some(points) = points_done {
+            self.res.num_points = points;
         } else {
-            x = 0;
-            y += 1;
-            if y >= self.height {
-                self.done = true;
-                points_done = Some(count + 1);
-                break;
-            }
+            self.res.num_points = self.res.values.len() + 1;
         }
 
-        iterations += if curr == 0 { 1 } else { curr };
-        if iterations - last_check > 100 {
-            last_check = iterations;
-            if performance.now() - start >= MAX_DURATION {
-                points_done = Some(count + 1);
-                break;
-            }
-        }
-    }
-    if let Some(points) = points_done {
-        self.res.num_points = points;
-    } else {
-        self.res.num_points = self.res.values.len() + 1;
-    }
+        self.x_curr = x;
+        self.y_curr = y;
 
-    self.x_curr = x;
-    self.y_curr = y;
-
-    &self.res
+        &self.res
     }
 
     fn is_done(&self) -> bool {
