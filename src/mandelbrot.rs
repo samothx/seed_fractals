@@ -1,6 +1,6 @@
 use seed::{log, prelude::web_sys};
 
-use super::{MAX_DURATION, util::find_escape_radius};
+use super::{util::find_escape_radius, MAX_DURATION};
 
 use super::{
     complex::Complex,
@@ -22,21 +22,20 @@ pub struct Mandelbrot {
 }
 
 impl Mandelbrot {
-    pub fn new(model: &Model) -> Mandelbrot {
+    pub fn new(model: &Model) -> Self {
         log!(format!(
             "creating fractal with: x_max: {}, x_min: {}",
-            model.config.mandelbrot_cfg.c_max,
-            model.config.mandelbrot_cfg.c_min,
+            model.config.mandelbrot_cfg.c_max, model.config.mandelbrot_cfg.c_min,
         ));
 
         let scale_real = (model.config.mandelbrot_cfg.c_max.real()
             - model.config.mandelbrot_cfg.c_min.real())
-            / model.width as f64;
+            / f64::from(model.width);
         let scale_imag = (model.config.mandelbrot_cfg.c_max.imag()
             - model.config.mandelbrot_cfg.c_min.imag())
-            / model.height as f64;
+            / f64::from(model.height);
 
-        Mandelbrot {
+        Self {
             scale_real,
             scale_imag,
             offset: model.config.mandelbrot_cfg.c_min,
@@ -49,7 +48,7 @@ impl Mandelbrot {
             done: false,
         }
     }
-    
+
     fn iterate(&self, c: &Complex) -> u32 {
         let max = find_escape_radius(c.norm()).powi(2);
         let mut x = Complex::new(0.0, 0.0);
@@ -64,73 +63,69 @@ impl Mandelbrot {
         }
 
         // log!(format!("iterate: end:  {} norm: {} last: {:?}", curr, curr.square_length(), last));
-        if let Some(last) = last {
-            last
-        } else {
-            self.iterations + 1
-        }
+        last.map_or(self.iterations + 1, |last| last)
     }
 }
 
 impl Fractal for Mandelbrot {
-    fn calculate<'a>(&'a mut self) -> &'a Points {
+    fn calculate(&mut self) -> &Points {
         let performance = web_sys::window()
-        .expect("Window not found")
-        .performance()
-        .expect("performance should be available");
+            .expect("Window not found")
+            .performance()
+            .expect("performance should be available");
 
-    let start = performance.now();
+        let start = performance.now();
 
-    self.res.x_start = self.x_curr;
-    self.res.y_start = self.y_curr;
-    self.res.num_points = 0;
+        self.res.x_start = self.x_curr;
+        self.res.y_start = self.y_curr;
+        self.res.num_points = 0;
 
-    let mut x = self.x_curr;
-    let mut y = self.y_curr;
+        let mut x = self.x_curr;
+        let mut y = self.y_curr;
 
-    let mut points_done: Option<usize> = None;
-    let mut last_check = 0u32;
-    let mut iterations = 0u32;
+        let mut points_done: Option<usize> = None;
+        let mut last_check = 0u32;
+        let mut iterations = 0u32;
 
-    for count in 0..self.res.values.len() {
-        let calc = Complex::new(
-            x as f64 * self.scale_real + self.offset.real(),
-            y as f64 * self.scale_imag + self.offset.imag(),
-        );
-        let curr = self.iterate(&calc);
-        self.res.values[count] = curr;
+        for count in 0..self.res.values.len() {
+            let calc = Complex::new(
+                f64::from(x).mul_add(self.scale_real,self.offset.real()),
+                f64::from(y).mul_add(self.scale_imag,self.offset.imag()),
+            );
+            let curr = self.iterate(&calc);
+            self.res.values[count] = curr;
 
-        if x < self.width {
-            x += 1;
+            if x < self.width {
+                x += 1;
+            } else {
+                x = 0;
+                y += 1;
+                if y >= self.height {
+                    self.done = true;
+                    points_done = Some(count + 1);
+                    break;
+                }
+            }
+
+            iterations += if curr == 0 { 1 } else { curr };
+            if iterations - last_check > 100 {
+                last_check = iterations;
+                if performance.now() - start >= MAX_DURATION {
+                    points_done = Some(count + 1);
+                    break;
+                }
+            }
+        }
+        if let Some(points) = points_done {
+            self.res.num_points = points;
         } else {
-            x = 0;
-            y += 1;
-            if y >= self.height {
-                self.done = true;
-                points_done = Some(count + 1);
-                break;
-            }
+            self.res.num_points = self.res.values.len() + 1;
         }
 
-        iterations += if curr == 0 { 1 } else { curr };
-        if iterations - last_check > 100 {
-            last_check = iterations;
-            if performance.now() - start >= MAX_DURATION {
-                points_done = Some(count + 1);
-                break;
-            }
-        }
-    }
-    if let Some(points) = points_done {
-        self.res.num_points = points;
-    } else {
-        self.res.num_points = self.res.values.len() + 1;
-    }
+        self.x_curr = x;
+        self.y_curr = y;
 
-    self.x_curr = x;
-    self.y_curr = y;
-
-    &self.res
+        &self.res
     }
 
     fn is_done(&self) -> bool {

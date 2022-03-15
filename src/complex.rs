@@ -1,3 +1,4 @@
+#![allow(clippy::missing_const_for_fn)]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::{Add, AddAssign, Mul, MulAssign};
@@ -9,8 +10,8 @@ pub struct Complex {
 }
 
 impl Complex {
-    pub fn new(real: f64, imag: f64) -> Complex {
-        Complex { real, imag }
+    pub fn new(real: f64, imag: f64) -> Self {
+        Self { real, imag }
     }
 
     #[inline]
@@ -31,7 +32,7 @@ impl Complex {
     }
     #[inline]
     pub fn square_length(&self) -> f64 {
-        self.real * self.real + self.imag * self.imag
+        self.real.mul_add(self.real, self.imag * self.imag)
     }
     #[inline]
     pub fn norm(&self) -> f64 {
@@ -43,7 +44,7 @@ impl Add for Complex {
     type Output = Self;
 
     fn add(self, other: Self) -> Self::Output {
-        Complex {
+        Self {
             real: self.real + other.real,
             imag: self.imag + other.imag,
         }
@@ -60,9 +61,9 @@ impl AddAssign for Complex {
 impl Mul for Complex {
     type Output = Self;
     fn mul(self, other: Self) -> Self::Output {
-        Complex {
+        Self {
             real: self.real * other.real - self.imag * other.imag,
-            imag: self.real * other.imag + self.imag * other.real,
+            imag: self.real.mul_add(other.imag, self.imag * other.real),
         }
     }
 }
@@ -70,7 +71,7 @@ impl Mul for Complex {
 impl MulAssign for Complex {
     fn mul_assign(&mut self, other: Self) {
         let real = self.real * other.real - self.imag * other.imag;
-        let imag = self.real * other.imag + self.imag * other.real;
+        let imag = self.real.mul_add(other.imag, self.imag * other.real);
         self.real = real;
         self.imag = imag;
     }

@@ -1,14 +1,14 @@
 use crate::{FractalType, Model, BACKGROUND_COLOR};
 use seed::log;
 
-use seed::{prelude::*, *};
+use seed::{prelude::*, canvas};
 
 use super::fractal::Points;
 use seed::prelude::web_sys::{HtmlCanvasElement, ImageData};
 use seed::prelude::JsValue;
 
-const COLOR_MAX: u32 = 0xFFFFFF;
-const COLOR_MIN: u32 = 0xFFFFFF;
+const COLOR_MAX: u32 = 0x00FF_FFFF;
+const COLOR_MIN: u32 = 0x00FF_FFFF;
 
 const START_HUE: u32 = 0;
 const DEFAULT_SATURATION: f32 = 1.0;
@@ -24,8 +24,8 @@ pub struct Canvas {
 }
 
 impl Canvas {
-    pub fn new(model: &Model) -> Canvas {
-        Canvas {
+    pub fn new(model: &Model) -> Self {
+        Self {
             canvas: canvas("canvas").expect("Canvas not found"),
             steps: match model.active_config {
                 FractalType::JuliaSet => model.config.julia_set_cfg.max_iterations,
@@ -128,74 +128,74 @@ impl Canvas {
             .expect("cannot draw image data");
     }
 
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
     pub fn viewport_to_canvas_coords(&self, x: i32, y: i32) -> Option<(u32, u32)> {
         let bounding_rect = self.canvas.get_bounding_client_rect();
-        let scale_x: f64 = f64::from(self.canvas.width()) / bounding_rect.width();
-        let scale_y: f64 = f64::from(self.canvas.height()) / bounding_rect.height();
-        let canvas_x = ((f64::from(x) - bounding_rect.left()) * scale_x) as i32;
-        let canvas_y = ((f64::from(y) - bounding_rect.top()) * scale_y) as i32;
-        if canvas_x >= 0
-            && canvas_x < self.canvas.width() as i32
-            && canvas_y >= 0
-            && canvas_y < self.canvas.height() as i32
+        let scale_x = f64::from(self.canvas.width()) / bounding_rect.width();
+        let scale_y = f64::from(self.canvas.height()) / bounding_rect.height();
+        let canvas_x = (f64::from(x) - bounding_rect.left()) * scale_x;
+        let canvas_y = (f64::from(y) - bounding_rect.top()) * scale_y;
+        if canvas_x >= 0.0
+            && canvas_x < f64::from(self.canvas.width())
+            && canvas_y >= 0.0
+            && canvas_y < f64::from(self.canvas.height())
         {
-            Some((canvas_x as u32, canvas_y as u32))
+            Some((canvas_x.abs() as u32, canvas_y.abs() as u32))
         } else {
             None
         }
     }
 
+
+    #[allow(clippy::cast_precision_loss)]
     fn iterations_as_hue_to_rgb(&self, iterations: u32) -> String {
-        Self::hue_to_rgb((iterations as f32 * (HUE_RANGE / self.steps as f32) + HUE_OFFSET) % 360.0)
+        Self::hue_to_rgb((iterations as f32).mul_add(HUE_RANGE / self.steps as f32, HUE_OFFSET) % 360.0)
     }
 
+    #[allow(clippy::many_single_char_names, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     fn hue_to_rgb(hue: f32) -> String {
         const TMP: f32 = 2.0 * DEFAULT_LIGHTNESS - 1.0;
         const C: f32 = (1.0 - if TMP >= 0.0 { TMP } else { -TMP }) * DEFAULT_SATURATION;
         const M: f32 = DEFAULT_LIGHTNESS - C / 2.0;
         let x = C * (1.0 - f32::abs((hue / 60.0) % 2.0 - 1.0));
 
-        let (r, g, b) = if hue >= 0.0 && hue < 60.0 {
-            (C, x, 0.0)
-        } else if hue >= 60.0 && hue < 120.0 {
-            (x, C, 0.0)
-        } else if hue >= 120.0 && hue < 180.0 {
-            (0.0, C, x)
-        } else if hue >= 180.0 && hue < 240.0 {
-            (0.0, x, C)
-        } else if hue >= 240.0 && hue < 300.0 {
-            (x, 0.0, C)
-        } else {
-            (C, 0.0, x)
+        let (r, g, b) = match hue as u32 {
+            0..=59 => (C, x, 0.0),
+            60..=119 => (x, C, 0.0),
+            120..=179 => (0.0, C, x),
+            180..=239 => (0.0, x, C),
+            240..=299 => (x, 0.0, C),
+            _ => (C, 0.0, x)
         };
 
         let (r, g, b) = (
-            f32::floor((r + M) * 255.0) as u32,
-            f32::floor((g + M) * 255.0) as u32,
-            f32::floor((b + M) * 255.0) as u32,
+            f32::floor((r + M) * 255.0).abs() as u32,
+            f32::floor((g + M) * 255.0).abs() as u32,
+            f32::floor((b + M) * 255.0).abs() as u32,
         );
 
         format!("#{:0>2X}{:0>2X}{:0>2X}", r % 0x100, g % 0x100, b % 0x100)
     }
 
-    fn hsl_to_rgb(hue: u32, saturation: f32, lightness: f32) -> String {
+    #[allow(clippy::many_single_char_names, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    fn hsl_to_rgb(hue: f32, saturation: f32, lightness: f32) -> String {
         // see: https://www.rapidtables.com/convert/color/hsl-to-rgb.html
 
-        assert!(saturation >= 0.0 && saturation <= 1.0);
-        assert!(lightness >= 0.0 && lightness <= 1.0);
+        assert!((0.0..=1.0).contains(&saturation));
+        assert!((0.0..=1.0).contains(&lightness));
 
-        let safe_hue = if hue >= 360 {
-            (hue % 360) as i32
+        let safe_hue = if hue >= 360.0 {
+            hue % 360.0
         } else {
-            hue as i32
+            hue
         };
 
         let c = (1.0 - f32::abs(2.0 * lightness - 1.0)) * saturation;
-        let x = c * (1.0 - i32::abs((safe_hue / 60) % 2 - 1) as f32);
+        let x = c * (1.0 - ((safe_hue / 60.0) % 2.0 - 1.0).abs());
         let m = lightness - c / 2.0;
-        let (r, g, b) = match hue {
+        let (r, g, b) = match hue as u32 {
             0..=59 => (c, x, 0.0),
-            60..=159 => (x, c, 0.0),
+            60..=119 => (x, c, 0.0),
             120..=179 => (0.0, c, x),
             180..=239 => (0.0, x, c),
             240..=299 => (x, 0.0, c),
@@ -206,9 +206,9 @@ impl Canvas {
         };
 
         let (r, g, b) = (
-            f32::floor((r + m) * 255.0) as u32,
-            f32::floor((g + m) * 255.0) as u32,
-            f32::floor((b + m) * 255.0) as u32,
+            f32::floor((r + m) * 255.0).abs() as u32,
+            f32::floor((g + m) * 255.0).abs() as u32,
+            f32::floor((b + m) * 255.0).abs() as u32,
         );
 
         format!("#{:X}{:X}{:X}", r % 0x100, g % 0x100, b % 0x100)
