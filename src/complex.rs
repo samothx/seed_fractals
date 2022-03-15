@@ -1,7 +1,8 @@
-use std::ops::{MulAssign, Mul, AddAssign, Add};
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::ops::{Add, AddAssign, Mul, MulAssign};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Complex {
     real: f64,
     imag: f64,
@@ -9,16 +10,30 @@ pub struct Complex {
 
 impl Complex {
     pub fn new(real: f64, imag: f64) -> Complex {
-        Complex {
-            real,
-            imag,
-        }
+        Complex { real, imag }
     }
 
+    #[inline]
+    pub fn real(&self) -> f64 {
+        self.real
+    }
+    #[inline]
+    pub fn imag(&self) -> f64 {
+        self.imag
+    }
+    #[inline]
+    pub fn set_real(&mut self, real: f64) {
+        self.real = real;
+    }
+    #[inline]
+    pub fn set_imag(&mut self, imag: f64) {
+        self.imag = imag;
+    }
+    #[inline]
     pub fn square_length(&self) -> f64 {
         self.real * self.real + self.imag * self.imag
     }
-
+    #[inline]
     pub fn norm(&self) -> f64 {
         f64::sqrt(self.square_length())
     }
@@ -63,6 +78,6 @@ impl MulAssign for Complex {
 
 impl Display for Complex {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f,"({}+{}i)", self.real, self.imag)
+        write!(f, "({}+{}i)", self.real, self.imag)
     }
 }

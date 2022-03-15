@@ -9,28 +9,39 @@ mod complex;
 use complex::Complex;
 
 mod fractal;
+use fractal::Fractal;
 
-use fractal::JuliaSet;
+mod mandelbrot;
+use mandelbrot::Mandelbrot;
 
-mod util;
+mod julia_set;
+use julia_set::JuliaSet;
 
-use util::{get_u32_from_input, get_f64_from_input};
+pub mod util;
+use util::{get_f64_from_input, get_u32_from_input};
 
 mod canvas;
 
-use canvas::Canvas;
-use web_sys::ImageData;
 use crate::util::{set_f64_on_input, set_u32_on_input};
+use canvas::Canvas;
+use web_sys::{HtmlSelectElement, ImageData};
 
+const JULIA_DEFAULT_X: (f64, f64) = (1.5, 1.0);
+const JULIA_DEFAULT_C: (f64, f64) = (-0.8, 0.156);
+const JULIA_DEFAULT_ITERATIONS: u32 = 400;
 
-const DEFAULT_XY: f64 = 1.5;
-const DEFAULT_C: (f64, f64) = (-0.4, 0.6);
+const MANDELBROT_DEFAULT_C_MAX: (f64, f64) = (0.47, 1.12);
+const MANDELBROT_DEFAULT_C_MIN: (f64, f64) = (-2.00,-1.12);
+const MANDELBROT_DEFAULT_ITERATIONS: u32 = 400;
+
 const DEFAULT_WIDTH: u32 = 1024;
-const DEFAULT_HEIGHT: u32 = 600;
-const DEFAULT_ITERATIONS: u32 = 400;
+const DEFAULT_HEIGHT: u32 = 800;
+
 const ENTER_KEY: &str = "Enter";
 const BACKGROUND_COLOR: &str = "#000000";
-const STORAGE_KEY: &str = "seed_fractals";
+const STORAGE_KEY: &str = "seed_fractals_v1";
+
+const MAX_DURATION: f64 = 0.3;
 
 // ------ ------
 //     Init
@@ -49,6 +60,7 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
         mouse_drag: None,
         paused: true,
         edit_mode: false,
+        active_config: FractalType::JuliaSet,
     }
 }
 
@@ -62,60 +74,93 @@ pub struct Model {
     config: Config,
     background_color: String,
     canvas: Option<Canvas>,
-    fractal: Option<JuliaSet>,
+    fractal: Option<Box<dyn Fractal>>,
     mouse_drag: Option<MouseDrag>,
     paused: bool,
     edit_mode: bool,
+    active_config: FractalType,
 }
 
 #[derive(Serialize, Deserialize)]
 struct Config {
-    max_iterations: u32,
-    x_max: f64,
-    x_min: f64,
-    y_max: f64,
-    y_min: f64,
-    c_real: f64,
-    c_imag: f64,
-}
-
-struct MouseDrag {
-    start: (i32, i32),
-    curr: (i32, i32),
-    image_data: Option<ImageData>,
+    julia_set_cfg: JuliaSetCfg,
+    mandelbrot_cfg: MandelbrotCfg,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
-            max_iterations: DEFAULT_ITERATIONS,
-            x_max: DEFAULT_XY,
-            x_min: -DEFAULT_XY,
-            y_max: DEFAULT_XY,
-            y_min: -DEFAULT_XY,
-            c_real: DEFAULT_C.0,
-            c_imag: DEFAULT_C.1,
+            julia_set_cfg: JuliaSetCfg::default(),
+            mandelbrot_cfg: MandelbrotCfg::default(),
         }
     }
+}
+
+#[derive(Serialize, Deserialize)]
+struct JuliaSetCfg {
+    max_iterations: u32,
+    x_max: Complex,
+    x_min: Complex,
+    c: Complex,
+}
+
+impl Default for JuliaSetCfg {
+    fn default() -> Self {
+        JuliaSetCfg {
+            max_iterations: JULIA_DEFAULT_ITERATIONS,
+            x_max: Complex::new(JULIA_DEFAULT_X.0, JULIA_DEFAULT_X.1),
+            x_min: Complex::new(-JULIA_DEFAULT_X.0, -JULIA_DEFAULT_X.1),
+            c: Complex::new(JULIA_DEFAULT_C.0, JULIA_DEFAULT_C.1),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct MandelbrotCfg {
+    max_iterations: u32,
+    c_max: Complex,
+    c_min: Complex,
+}
+
+impl Default for MandelbrotCfg {
+    fn default() -> Self {
+        MandelbrotCfg {
+            max_iterations: 400,
+            c_max: Complex::new(MANDELBROT_DEFAULT_C_MAX.0, MANDELBROT_DEFAULT_C_MAX.1),
+            c_min: Complex::new(MANDELBROT_DEFAULT_C_MIN.0, MANDELBROT_DEFAULT_C_MIN.1),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+enum FractalType {
+    Mandelbrot,
+    JuliaSet,
+}
+
+struct MouseDrag {
+    start: (u32, u32),
+    curr: (u32, u32),
+    image_data: Option<ImageData>,
 }
 
 // ------ ------
 //    Update
 // ------ ------
 
-
 #[derive(Clone)]
 enum Msg {
     Start,
     Pause,
     Clear,
+    TypeChanged,
     Edit,
     SaveEdit,
     CancelEdit,
     Draw,
     MouseDown(web_sys::MouseEvent),
     MouseMove(web_sys::MouseEvent),
-    MouseUp(web_sys::MouseEvent),
+    MouseUp(Option<web_sys::MouseEvent>),
 }
 
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -128,11 +173,29 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 model.canvas = Some(canvas);
             }
             log!("Message received: Start, creating fractal");
-            let mut fractal = JuliaSet::new(&model);
-            model.canvas.as_ref().expect("unexpected missing canvas")
-                .draw_results(fractal.calculate());
-            model.fractal = Some(fractal);
+
+            match model.active_config {
+                FractalType::JuliaSet => {
+                    let mut fractal = JuliaSet::new(&model);
+                    model
+                        .canvas
+                        .as_ref()
+                        .expect("unexpected missing canvas")
+                        .draw_results(fractal.calculate());
+                    model.fractal = Some(Box::new(fractal));
+                }
+                FractalType::Mandelbrot => {
+                    let mut fractal = Mandelbrot::new(&model);
+                    model
+                        .canvas
+                        .as_ref()
+                        .expect("unexpected missing canvas")
+                        .draw_results(fractal.calculate());
+                    model.fractal = Some(Box::new(fractal));
+                }
+            }
             model.paused = false;
+
             orders.after_next_render(|_| Msg::Draw);
         }
         Msg::Pause => {
@@ -150,84 +213,173 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 canvas.clear_canvas(&model);
                 model.canvas = Some(canvas);
             } else {
-                model.canvas.as_ref().expect("unexpected empty canvas").clear_canvas(&model);
+                model
+                    .canvas
+                    .as_ref()
+                    .expect("unexpected empty canvas")
+                    .clear_canvas(&model);
             }
+        }
+        Msg::TypeChanged => {
+            log!("Message received: TypeChanged");
+            let selected = window()
+                .document()
+                .expect("document not found in window")
+                .get_element_by_id("type_select")
+                .expect("type_select not found")
+                .dyn_into::<HtmlSelectElement>()
+                .expect("type_select is not a HtmlSelectElement")
+                .value();
+
+            model.active_config = match selected.as_str() {
+                "type_mandelbrot" => FractalType::Mandelbrot,
+                "type_julia_set" => FractalType::JuliaSet,
+                _ => model.active_config,
+            };
         }
 
         Msg::Edit => {
             log!("Message received: Edit");
+            match model.active_config {
+                FractalType::JuliaSet => {
+                    set_u32_on_input("julia_iterations", model.config.julia_set_cfg.max_iterations);
+                    set_f64_on_input("julia_max_real", model.config.julia_set_cfg.x_max.real());
+                    set_f64_on_input("julia_min_real", model.config.julia_set_cfg.x_min.real());
+                    set_f64_on_input("julia_max_imag", model.config.julia_set_cfg.x_max.imag());
+                    set_f64_on_input("julia_min_imag", model.config.julia_set_cfg.x_min.imag());
+                    set_f64_on_input("julia_c_real", model.config.julia_set_cfg.c.real());
+                    set_f64_on_input("julia_c_imag", model.config.julia_set_cfg.c.imag());
+
+                    window()
+                        .document()
+                        .expect("document not found")
+                        .get_element_by_id("julia_edit_cntr")
+                        .expect("edit_cntr not found")
+                        .set_class_name("edit_cntr_visible");
+                }
+                FractalType::Mandelbrot => {
+                    set_u32_on_input("mandelbrot_iterations", model.config.julia_set_cfg.max_iterations);
+                    set_f64_on_input("mandelbrot_max_real", model.config.mandelbrot_cfg.c_max.real());
+                    set_f64_on_input("mandelbrot_min_real", model.config.mandelbrot_cfg.c_min.real());
+                    set_f64_on_input("mandelbrot_max_imag", model.config.mandelbrot_cfg.c_max.imag());
+                    set_f64_on_input("mandelbrot_min_imag", model.config.mandelbrot_cfg.c_min.imag());
+
+                    window()
+                        .document()
+                        .expect("document not found")
+                        .get_element_by_id("mandelbrot_edit_cntr")
+                        .expect("edit_cntr not found")
+                        .set_class_name("edit_cntr_visible");
+                }
+            }
             model.edit_mode = true;
-            let document = window().document().expect("document not found");
 
-            set_u32_on_input("iterations",model.config.max_iterations);
-            set_f64_on_input("max_x", model.config.x_max);
-            set_f64_on_input("min_x", model.config.x_min);
-            set_f64_on_input("max_y", model.config.y_max);
-            set_f64_on_input("min_y", model.config.y_min);
-            set_f64_on_input("c_real", model.config.c_real);
-            set_f64_on_input("c_imag", model.config.c_imag);
-
-            document.get_element_by_id("edit_cntr").expect("edit_cntr not found")
-                .set_class_name("edit_cntr_visible");
         }
+
         Msg::SaveEdit => {
             log!("Message received: SaveEdit");
             model.edit_mode = false;
             let document = window().document().expect("document not found");
+            match model.active_config {
+                FractalType::JuliaSet => {
+                    if let Some(value) = get_u32_from_input("julia_iterations") {
+                        model.config.julia_set_cfg.max_iterations = value;
+                    }
 
-            if let Some(value) = get_u32_from_input("iterations") {
-                model.config.max_iterations = value;
+                    if let Some(value) = get_f64_from_input("julia_max_real") {
+                        model.config.julia_set_cfg.x_max.set_real(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("julia_min_real") {
+                        model.config.julia_set_cfg.x_min.set_real(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("julia_max_imag") {
+                        model.config.julia_set_cfg.x_max.set_imag(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("julia_min_imag") {
+                        model.config.julia_set_cfg.x_min.set_imag(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("julia_c_real") {
+                        model.config.julia_set_cfg.c.set_real(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("julia_c_imag") {
+                        model.config.julia_set_cfg.c.set_imag(value);
+                    }
+
+                    document
+                        .get_element_by_id("julia_edit_cntr")
+                        .expect("edit_cntr not found")
+                        .set_class_name("edit_cntr_hidden");
+                }
+                FractalType::Mandelbrot => {
+                    if let Some(value) = get_u32_from_input("mandelbrot_iterations") {
+                        model.config.mandelbrot_cfg.max_iterations = value;
+                    }
+
+                    if let Some(value) = get_f64_from_input("mandelbrot_max_real") {
+                        model.config.mandelbrot_cfg.c_max.set_real(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("mandelbrot_min_real") {
+                        model.config.mandelbrot_cfg.c_min.set_real(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("mandelbrot_max_imag") {
+                        model.config.mandelbrot_cfg.c_max.set_imag(value);
+                    }
+
+                    if let Some(value) = get_f64_from_input("mandelbrot_min_imag") {
+                        model.config.mandelbrot_cfg.c_min.set_imag(value);
+                    }
+
+                    document
+                        .get_element_by_id("mandelbrot_edit_cntr")
+                        .expect("edit_cntr not found")
+                        .set_class_name("edit_cntr_hidden");
+                }
             }
+            LocalStorage::insert(STORAGE_KEY, &model.config)
+            .expect("save data to LocalStorage");
 
-            if let Some(value) = get_f64_from_input("max_x") {
-                model.config.x_max = value;
-            }
-
-            if let Some(value) = get_f64_from_input("min_x") {
-                model.config.x_min = value;
-            }
-
-            if let Some(value) = get_f64_from_input("max_y") {
-                model.config.y_max = value;
-            }
-
-            if let Some(value) = get_f64_from_input("min_y") {
-                model.config.y_min = value;
-            }
-
-            if let Some(value) = get_f64_from_input("c_real") {
-                model.config.c_real = value;
-            }
-
-            if let Some(value) = get_f64_from_input("c_imag") {
-                model.config.c_imag = value;
-            }
-
-            LocalStorage::insert(STORAGE_KEY, &model.config).expect("save data to LocalStorage");
-
-            log!(format!("Save: saved values x_max: {}, x_min: {}, y_max: {}, y_min: {}, c: {}",
-                model.config.x_max, model.config.x_min, model.config.y_max, model.config.y_min,
-                Complex::new(model.config.c_real, model.config.c_imag)));
-            document.get_element_by_id("edit_cntr").expect("edit_cntr not found")
-                .set_class_name("edit_cntr_hidden");
             // TODO: save to local storage
             orders.after_next_render(|_| Msg::Clear);
         }
         Msg::CancelEdit => {
             log!("Message received: SaveEdit");
             model.edit_mode = false;
-            window().document().expect("document not found")
-                .get_element_by_id("edit_cntr").expect("edit_cntr not found")
-                .set_class_name("edit_cntr_hidden");
+            match model.active_config {
+                FractalType::JuliaSet => {
+                    window()
+                        .document()
+                        .expect("document not found")
+                        .get_element_by_id("julia_edit_cntr")
+                        .expect("edit_cntr not found")
+                        .set_class_name("edit_cntr_hidden");
+                }
+                FractalType::Mandelbrot => {
+                    window()
+                        .document()
+                        .expect("document not found")
+                        .get_element_by_id("mandelbrot_edit_cntr")
+                        .expect("edit_cntr not found")
+                        .set_class_name("edit_cntr_hidden");
+                }
+            }
         }
-
         Msg::Draw => {
             // log!("Message received: Draw");
             if !model.paused {
-                model.canvas.as_ref().expect("unexpected missing canvas")
-                    .draw_results(model.fractal.as_mut().expect("unexpectted missing fractal")
-                        .calculate());
-                if !model.fractal.as_ref().expect("unexpectted missing fractal").is_done() {
+                let fractal = model.fractal.as_mut().expect("unexpected missing fractal");
+                model
+                    .canvas
+                    .as_ref()
+                    .expect("unexpected missing canvas")
+                    .draw_results(fractal.calculate());
+                if !fractal.is_done() {
                     orders.after_next_render(|_| Msg::Draw);
                 } else {
                     model.paused = true;
@@ -236,50 +388,121 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::MouseDown(ev) => {
             log!("Message received: MouseDown");
-            let pos = (ev.client_x(), ev.client_y());
-            model.mouse_drag = Some(MouseDrag {
-                start: pos,
-                curr: pos,
-                image_data: None,
-            });
+            if let Some(canvas_coords) = model
+                .canvas
+                .as_ref()
+                .expect("unexpected missing canvas")
+                .viewport_to_canvas_coords(ev.client_x(), ev.client_y())
+            {
+                model.mouse_drag = Some(MouseDrag {
+                    start: canvas_coords,
+                    curr: canvas_coords,
+                    image_data: None,
+                });
+            }
         }
         Msg::MouseMove(ev) => {
             log!("Message received: MouseMove");
             if let Some(mouse_drag) = model.mouse_drag.as_mut() {
-                mouse_drag.curr = (ev.client_x(), ev.client_y());
-                if let Some(canvas) = model.canvas.as_ref() {
-                    if let Some(image_data) = mouse_drag.image_data.as_ref() {
-                        canvas.undraw(image_data);
-                    }
+                let canvas = model.canvas.as_ref().expect("unexpected missing canvas");
 
+                if let Some(image_data) = mouse_drag.image_data.as_ref() {
+                    canvas.undraw(image_data);
+                }
+
+                if let Some(canvas_coords) =
+                    canvas.viewport_to_canvas_coords(ev.client_x(), ev.client_y())
+                {
+                    mouse_drag.curr = canvas_coords;
                     mouse_drag.image_data = Some(canvas.draw_frame(
-                        mouse_drag.start.0, mouse_drag.start.1,
-                        mouse_drag.curr.0, mouse_drag.curr.1));
+                        mouse_drag.start.0,
+                        mouse_drag.start.1,
+                        mouse_drag.curr.0,
+                        mouse_drag.curr.1,
+                    ));
+                } else {
+                    mouse_drag.image_data = None;
+                    orders.after_next_render(|_| Msg::MouseUp(None));
                 }
             }
         }
         Msg::MouseUp(ev) => {
             log!("Message received: MouseUp");
             if let Some(mouse_drag) = model.mouse_drag.as_mut() {
-                mouse_drag.curr = (ev.client_x(), ev.client_y());
-                if let Some(canvas) = model.canvas.as_ref() {
-                    if let Some(image_data) = mouse_drag.image_data.as_ref() {
-                        canvas.undraw(image_data);
-                    }
-                    let (x_start, y_start, x_end, y_end) = canvas.viewport_to_canvas_coords(
-                        mouse_drag.start.0, mouse_drag.start.1,
-                        mouse_drag.curr.0, mouse_drag.curr.1);
-                    log!("setting new values");
-                    let x_scale = (model.config.x_max - model.config.x_min) / model.width as f64;
-                    set_f64_on_input("max_x", x_start * x_scale + model.config.x_min);
-                    set_f64_on_input("min_x", x_end * x_scale + model.config.x_min);
-                    let x_scale = (model.config.y_max - model.config.y_min) / model.height as f64;
-                    set_f64_on_input("max_y", y_start * x_scale + model.config.y_min);
-                    set_f64_on_input("min_y", y_end * x_scale + model.config.y_min);
+                let canvas = model.canvas.as_ref().expect("unexpected missing canvas");
+                if let Some(image_data) = mouse_drag.image_data.as_ref() {
+                    canvas.undraw(image_data);
                 }
+                if let Some(mouse_ev) = ev {
+                    if let Some(canvas_coords) =
+                        canvas.viewport_to_canvas_coords(mouse_ev.client_x(), mouse_ev.client_y())
+                    {
+                        mouse_drag.curr = canvas_coords;
+                    }
+                }
+
+                let (x_start, x_end) = if mouse_drag.curr.0 > mouse_drag.start.0 {
+                    (mouse_drag.start.0, mouse_drag.curr.0)
+                } else if mouse_drag.curr.0 < mouse_drag.start.0 {
+                    (mouse_drag.curr.0, mouse_drag.start.0)
+                } else {
+                    model.mouse_drag = None;
+                    return;
+                };
+
+                let (y_start, y_end) = if mouse_drag.curr.1 > mouse_drag.start.1 {
+                    (mouse_drag.start.1, mouse_drag.curr.1)
+                } else if mouse_drag.curr.1 < mouse_drag.start.1 {
+                    (mouse_drag.curr.1, mouse_drag.start.1)
+                } else {
+                    model.mouse_drag = None;
+                    return;
+                };
+
+                log!(format!(
+                    "setting new values, canvas coordinates: ({},{}), ({},{})",
+                    x_start, y_start, x_end, y_end
+                ));
+                match model.active_config {
+                    FractalType::JuliaSet => {
+                        let x_scale = (model.config.julia_set_cfg.x_max.real()
+                            - model.config.julia_set_cfg.x_min.real())
+                            / model.width as f64;
+                        set_f64_on_input(
+                            "julia_max_real",
+                            x_end as f64 * x_scale + model.config.julia_set_cfg.x_min.real(),
+                        );
+                        set_f64_on_input(
+                            "julia_min_real",
+                            x_start as f64 * x_scale + model.config.julia_set_cfg.x_min.real(),
+                        );
+                        let x_scale = (model.config.julia_set_cfg.x_max.imag()
+                            - model.config.julia_set_cfg.x_min.imag())
+                            / model.height as f64;
+                        set_f64_on_input(
+                            "julia_max_imag",
+                            y_end as f64 * x_scale + model.config.julia_set_cfg.x_min.imag(),
+                        );
+                        set_f64_on_input(
+                            "julia_min_imag",
+                            y_start as f64 * x_scale + model.config.julia_set_cfg.x_min.imag(),
+                        );
+                    }
+                    FractalType::Mandelbrot => {
+                        /*
+                        let x_scale = (model.config.mandelbrot_cfg.x_max.real() - model.config.mandelbrot_cfg.x_min.real()) / model.width as f64;
+                        set_f64_on_input("julia_max_real", x_end * x_scale + model.config.mandelbrot_cfg.x_max.real());
+                        set_f64_on_input("julia_min_real", x_start * x_scale + model.config.mandelbrot_cfg.x_min.real());
+                        let x_scale = (model.config.julia_set_cfg.x_max.imag() - model.config.mandelbrot_cfg.x_min.imag()) / model.height as f64;
+                        set_f64_on_input("julia_max_imag", y_end * x_scale + model.config.mandelbrot_cfg.x_max.imag());
+                        set_f64_on_input("julia_min_imag", y_start * x_scale + model.config.mandelbrot_cfg.x_min.imag());
+                        */
+                    }
+                }
+
                 mouse_drag.image_data = None;
+                model.mouse_drag = None;
             }
-            model.mouse_drag = None;
         }
     }
 }
@@ -292,15 +515,17 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 fn view(model: &Model) -> Node<Msg> {
     div![
         C!["outer_cntr"],
-        h1!["Julia Sets"],
+        IF![model.active_config == FractalType::Mandelbrot => h1!["Mandelbrot Set"]],
+        IF![model.active_config == FractalType::JuliaSet => h1!["Julia Set"]],
         view_buttons(model),
-        view_editor(),
+        view_julia_set_cfg_editor(),
+        view_mandelbrot_cfg_editor(),
         div![
             C!["canvas_cntr"],
             canvas![
                 C!["canvas"],
                 id!("canvas"),
-                attrs!{
+                attrs! {
                     At::Width => model.width.to_string(),
                     At::Height => model.height.to_string()
                 },
@@ -311,72 +536,87 @@ fn view(model: &Model) -> Node<Msg> {
                             Msg::MouseDown(mouse_event)})
                 ),
                 IF!(model.mouse_drag.is_some() =>
-                        vec![
-                            ev(Ev::MouseMove, |event| {
-                                let mouse_event: web_sys::MouseEvent = event.unchecked_into();
-                                Msg::MouseMove(mouse_event)
-                            }),
-                            ev(Ev::MouseUp, |event| {
-                                let mouse_event: web_sys::MouseEvent = event.unchecked_into();
-                                Msg::MouseUp(mouse_event)
-                            })
-                        ]
-                    ),
+                    vec![
+                        ev(Ev::MouseMove, |event| {
+                            let mouse_event: web_sys::MouseEvent = event.unchecked_into();
+                            Msg::MouseMove(mouse_event)
+                        }),
+                        ev(Ev::MouseUp, |event| {
+                            let mouse_event: web_sys::MouseEvent = event.unchecked_into();
+                            Msg::MouseUp(Some(mouse_event))
+                        })
+                    ]
+                ),
             ]
         ]
     ]
 }
 
 fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
-    vec![
-        div![
-            C!["button_cntr"],
-            button![
-                C!["button"],
-                id!("start"),
-                ev(Ev::Click, |_| Msg::Start),
-                IF!(!model.paused =>  attrs!{At::Disabled => "true" } ),
-                "Start"
-            ],
-            button![
-                C!["button"],
-                id!("pause"),
-                ev(Ev::Click, |_| Msg::Pause),
-                IF!(model.paused =>  attrs!{At::Disabled => "true" } ),
-                "Pause"
-            ],
-            button![
-                C!["button"],
-                id!("clear"),
-                ev(Ev::Click, |_| Msg::Clear),
-                "Clear"
-            ],
-            button![
-                C!["button"],
-                id!("edit"),
-                ev(Ev::Click, |_| Msg::Edit),
-                "Edit"
-            ],
+    vec![div![
+        C!["button_cntr"],
+        button![
+            C!["button"],
+            id!("start"),
+            ev(Ev::Click, |_| Msg::Start),
+            IF!(!model.paused =>  attrs!{At::Disabled => "true" } ),
+            "Start"
+        ],
+        button![
+            C!["button"],
+            id!("pause"),
+            ev(Ev::Click, |_| Msg::Pause),
+            IF!(model.paused =>  attrs!{At::Disabled => "true" } ),
+            "Pause"
+        ],
+        button![
+            C!["button"],
+            id!("clear"),
+            ev(Ev::Click, |_| Msg::Clear),
+            "Clear"
+        ],
+        button![
+            C!["button"],
+            id!("edit"),
+            ev(Ev::Click, |_| Msg::Edit),
+            "Edit"
+        ],
+        label![
+            C!["input_label"],
+            attrs! { At::For => "type_select"},
+            "Select Type"
+        ],
+        select![
+            C!["type_select"],
+            id!("type_select"),
+            attrs! {At::Name => "type_select" },
+            IF![model.active_config == FractalType::Mandelbrot => attrs!{At::Value => "type_mandelbrot"}],
+            IF![model.active_config == FractalType::JuliaSet => attrs!{At::Value => "type_julia_set"}],
+            option![attrs! {At::Value => "type_mandelbrot" }, "Mandelbrot Set"],
+            option![attrs! {At::Value => "type_julia_set" }, "Julia Set"],
+            ev(Ev::Change, |_| Msg::TypeChanged),
         ]
-    ]
+    ]]
 }
 
-fn view_editor() -> Node<Msg> {
+fn view_julia_set_cfg_editor() -> Node<Msg> {
     div![
         C!["edit_cntr_hidden"],
-        id!("edit_cntr"),
+        id!("julia_edit_cntr"),
         div![
             C!["input_cntr"],
             div![
                 C!["input_inner"],
                 label![
                     C!["input_label"],
-                    attrs! { At::For => "iterations"}, "Iterations"],
+                    attrs! { At::For => "julia_iterations"},
+                    "Iterations"
+                ],
                 input![
                     C!["input"],
-                    id!("iterations"),
+                    id!("julia_iterations"),
                     attrs! {
-                        At::Name => "iterations",
+                        At::Name => "julia_iterations",
                         At::Type => "number",
                         At::Min =>"100",
                         At::Max =>"1000",
@@ -384,51 +624,49 @@ fn view_editor() -> Node<Msg> {
                     },
                 ],
             ],
-        div![
+            div![
                 C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "c_real"}, "C Real"],
+                label![C!["input_label"], attrs! { At::For => "julia_c_real"}, "C Real"],
                 input![
                     C!["input"],
-                    id!("c_real"),
+                    id!("julia_c_real"),
                     attrs! {
-                        At::Name => "c_real",
+                        At::Name => "julia_c_real",
                         At::Type => "number",
                         At::Step => "0.0000001"
                         //At::Value => {model.c_real.to_string()},
                     },
                 ],
             ],
-        div![
+            div![
                 C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "c_imag"}, "C Imaginary"],
+                label![C!["input_label"], attrs! { At::For => "julia_c_imag"}, "C Imag."],
                 input![
                     C!["input"],
-                    id!("c_imag"),
+                    id!("julia_c_imag"),
                     attrs! {
-                        At::Name => "c_imag",
+                        At::Name => "julia_c_imag",
                         At::Type => "number",
                         At::Step => "0.0000001"
                         //At::Value => {model.c_imag.to_string()},
                     },
                 ],
             ],
-    ],
-    div![
+        ],
+        div![
             C!["input_cntr"],
             div![
                 C!["input_inner"],
                 label![
                     C!["input_label"],
-                    attrs! { At::For => "max_x"}, "Max. X"],
+                    attrs! { At::For => "julia_max_real"},
+                    "Max. Real"
+                ],
                 input![
                     C!["input"],
-                    id!("max_x"),
+                    id!("julia_max_real"),
                     attrs! {
-                        At::Name => "max_x",
+                        At::Name => "julia_max_real",
                         At::Type => "number",
                         At::Step => "0.01",
                         //At::Value => {model.x_max.to_string()},
@@ -439,12 +677,14 @@ fn view_editor() -> Node<Msg> {
                 C!["input_inner"],
                 label![
                     C!["input_label"],
-                    attrs! { At::For => "min_x"}, "Min. X"],
+                    attrs! { At::For => "julia_min_real"},
+                    "Min. Real"
+                ],
                 input![
                     C!["input"],
-                    id!("min_x"),
+                    id!("julia_min_real"),
                     attrs! {
-                        At::Name => "min_x",
+                        At::Name => "julia_min_real",
                         At::Type => "number",
                         At::Step => "0.01",
                         //At::Value => {model.x_min.to_string()},
@@ -453,15 +693,16 @@ fn view_editor() -> Node<Msg> {
             ],
             div![
                 C!["input_inner"],
-
                 label![
                     C!["input_label"],
-                    attrs! { At::For => "max_y"}, "Max. X"],
+                    attrs! { At::For => "julia_max_imag"},
+                    "Max. Imag."
+                ],
                 input![
                     C!["input"],
-                    id!("max_y"),
+                    id!("julia_max_imag"),
                     attrs! {
-                        At::Name => "max_y",
+                        At::Name => "julia_max_imag",
                         At::Type => "number",
                         At::Step => "0.01",
                         //At::Value => {model.y_max.to_string()},
@@ -472,12 +713,14 @@ fn view_editor() -> Node<Msg> {
                 C!["input_inner"],
                 label![
                     C!["input_label"],
-                    attrs! { At::For => "min_y"}, "Min. Y"],
+                    attrs! { At::For => "julia_min_imag"},
+                    "Min. Imag."
+                ],
                 input![
                     C!["input"],
-                    id!("min_y"),
+                    id!("julia_min_imag"),
                     attrs! {
-                        At::Name => "min_y",
+                        At::Name => "julia_min_imag",
                         At::Type => "number",
                         At::Step => "0.01",
                         //At::Value => {model.y_min.to_string()},
@@ -489,16 +732,135 @@ fn view_editor() -> Node<Msg> {
             C!["button_cntr"],
             button![
                 C!["button"],
-                id!("save"),
+                id!("julia_save"),
                 ev(Ev::Click, |_| Msg::SaveEdit),
                 "Save"
             ],
             button![
                 C!["button"],
-                id!("cancel"),
+                id!("julia_cancel"),
                 ev(Ev::Click, |_| Msg::CancelEdit),
                 "Cancel"
+           ]
+        ]
+    ]
+}
+
+fn view_mandelbrot_cfg_editor() -> Node<Msg> {
+    div![
+        C!["edit_cntr_hidden"],
+        id!("mandelbrot_edit_cntr"),
+        div![
+            C!["input_cntr"],
+            div![
+                C!["input_inner"],
+                label![
+                    C!["input_label"],
+                    attrs! { At::For => "mandelbrot_iterations"},
+                    "Iterations"
+                ],
+                input![
+                    C!["input"],
+                    id!("mandelbrot_iterations"),
+                    attrs! {
+                        At::Name => "mandelbrot_iterations",
+                        At::Type => "number",
+                        At::Min =>"100",
+                        At::Max =>"1000",
+                        // At::Value => {model.max_iterations.to_string()},
+                    },
+                ],
             ],
+        ],
+        div![
+            C!["input_cntr"],
+            div![
+                C!["input_inner"],
+                label![
+                    C!["input_label"],
+                    attrs! { At::For => "mandelbrot_max_real"},
+                    "Max. Real"
+                ],
+                input![
+                    C!["input"],
+                    id!("mandelbrot_max_real"),
+                    attrs! {
+                        At::Name => "mandelbrot_max_real",
+                        At::Type => "number",
+                        At::Step => "0.01",
+                        //At::Value => {model.x_max.to_string()},
+                    },
+                ]
+            ],
+            div![
+                C!["input_inner"],
+                label![
+                    C!["input_label"],
+                    attrs! { At::For => "mandelbrot_min_real"},
+                    "Min. Real"
+                ],
+                input![
+                    C!["input"],
+                    id!("mandelbrot_min_real"),
+                    attrs! {
+                        At::Name => "mandelbrot_min_real",
+                        At::Type => "number",
+                        At::Step => "0.01",
+                        //At::Value => {model.x_min.to_string()},
+                    },
+                ]
+            ],
+            div![
+                C!["input_inner"],
+                label![
+                    C!["input_label"],
+                    attrs! { At::For => "mandelbrot_max_imag"},
+                    "Max. Imag."
+                ],
+                input![
+                    C!["input"],
+                    id!("mandelbrot_max_imag"),
+                    attrs! {
+                        At::Name => "mandelbrot_max_imag",
+                        At::Type => "number",
+                        At::Step => "0.01",
+                        //At::Value => {model.y_max.to_string()},
+                    },
+                ]
+            ],
+            div![
+                C!["input_inner"],
+                label![
+                    C!["input_label"],
+                    attrs! { At::For => "mandelbrot_min_imag"},
+                    "Min. Imag."
+                ],
+                input![
+                    C!["input"],
+                    id!("mandelbrot_min_imag"),
+                    attrs! {
+                        At::Name => "mandelbrot_min_imag",
+                        At::Type => "number",
+                        At::Step => "0.01",
+                        //At::Value => {model.y_min.to_string()},
+                    },
+                ]
+            ],
+        ],
+        div![
+            C!["button_cntr"],
+            button![
+                C!["button"],
+                id!("mandelbrot_save"),
+                ev(Ev::Click, |_| Msg::SaveEdit),
+                "Save"
+            ],
+            button![
+                C!["button"],
+                id!("mandelbrot_cancel"),
+                ev(Ev::Click, |_| Msg::CancelEdit),
+                "Cancel"
+           ]
         ]
     ]
 }
