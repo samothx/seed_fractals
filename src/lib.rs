@@ -489,14 +489,28 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                         );
                     }
                     FractalType::Mandelbrot => {
-                        /*
-                        let x_scale = (model.config.mandelbrot_cfg.x_max.real() - model.config.mandelbrot_cfg.x_min.real()) / model.width as f64;
-                        set_f64_on_input("julia_max_real", x_end * x_scale + model.config.mandelbrot_cfg.x_max.real());
-                        set_f64_on_input("julia_min_real", x_start * x_scale + model.config.mandelbrot_cfg.x_min.real());
-                        let x_scale = (model.config.julia_set_cfg.x_max.imag() - model.config.mandelbrot_cfg.x_min.imag()) / model.height as f64;
-                        set_f64_on_input("julia_max_imag", y_end * x_scale + model.config.mandelbrot_cfg.x_max.imag());
-                        set_f64_on_input("julia_min_imag", y_start * x_scale + model.config.mandelbrot_cfg.x_min.imag());
-                        */
+                        let x_scale = (model.config.mandelbrot_cfg.c_max.real()
+                            - model.config.mandelbrot_cfg.c_min.real())
+                            / model.width as f64;
+                        set_f64_on_input(
+                            "mandelbrot_max_real",
+                            x_end as f64 * x_scale + model.config.mandelbrot_cfg.c_min.real(),
+                        );
+                        set_f64_on_input(
+                            "mandelbrot_min_real",
+                            x_start as f64 * x_scale + model.config.mandelbrot_cfg.c_min.real(),
+                        );
+                        let x_scale = (model.config.mandelbrot_cfg.c_max.imag()
+                            - model.config.mandelbrot_cfg.c_min.imag())
+                            / model.height as f64;
+                        set_f64_on_input(
+                            "mandelbrot_max_imag",
+                            y_end as f64 * x_scale + model.config.mandelbrot_cfg.c_min.imag(),
+                        );
+                        set_f64_on_input(
+                            "mandelbrot_min_imag",
+                            y_start as f64 * x_scale + model.config.mandelbrot_cfg.c_min.imag(),
+                        );
                     }
                 }
 
