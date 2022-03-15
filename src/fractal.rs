@@ -4,16 +4,16 @@ pub struct Points {
     pub x_start: u32,
     pub y_start: u32,
     pub num_points: usize,
-    pub values: [u32;MAX_POINTS],
+    pub values: [u32; MAX_POINTS],
 }
 
 impl Default for Points {
     fn default() -> Self {
-        Self{
+        Self {
             x_start: 0,
             y_start: 0,
             num_points: 0,
-            values: [0;MAX_POINTS]
+            values: [0; MAX_POINTS],
         }
     }
 }

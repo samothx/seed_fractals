@@ -1,10 +1,14 @@
-use seed::{log};
+use seed::log;
 // use wasm_bindgen::prelude::web_sys;
 use seed::prelude::web_sys;
+use super::{MAX_DURATION, util::find_escape_radius};
 
-use super::{Model, complex::Complex, fractal::{Points, Fractal} };
+use super::{
+    complex::Complex,
+    fractal::{Fractal, Points},
+    Model,
+};
 
-const MAX_DURATION: f64 = 0.3;
 
 
 pub struct JuliaSet {
@@ -19,20 +23,25 @@ pub struct JuliaSet {
     y_curr: u32,
     iterations: u32,
     res: Points,
-    done: bool
+    done: bool,
 }
-
 
 impl JuliaSet {
     pub fn new(model: &Model) -> JuliaSet {
+        log!(format!(
+            "creating fractal with: x_max: {}, x_min: {}, c: {}",
+            model.config.julia_set_cfg.x_max,
+            model.config.julia_set_cfg.x_min,
+            model.config.julia_set_cfg.c
+        ));
 
-        log!(format!("creating fractal with: x_max: {}, x_min: {}, c: {}",
-            model.config.julia_set_cfg.x_max, model.config.julia_set_cfg.x_min , model.config.julia_set_cfg.c));
-
-        let scale_real = (model.config.julia_set_cfg.x_max.real() - model.config.julia_set_cfg.x_min.real()) / model.width as f64;
-        let scale_imag = (model.config.julia_set_cfg.x_max.imag() - model.config.julia_set_cfg.x_min.imag()) / model.height as f64;
-        let max = JuliaSet::find_escape_radius(model.config.julia_set_cfg.c.norm());
-
+        let scale_real = (model.config.julia_set_cfg.x_max.real()
+            - model.config.julia_set_cfg.x_min.real())
+            / model.width as f64;
+        let scale_imag = (model.config.julia_set_cfg.x_max.imag()
+            - model.config.julia_set_cfg.x_min.imag())
+            / model.height as f64;
+        let max = find_escape_radius(model.config.julia_set_cfg.c.norm());
 
         JuliaSet {
             scale_real,
@@ -46,69 +55,36 @@ impl JuliaSet {
             height: model.height,
             iterations: model.config.julia_set_cfg.max_iterations,
             res: Points::default(),
-            done: false
+            done: false,
         }
     }
-
 
     fn iterate(&self, x: &Complex) -> u32 {
         let mut curr = *x;
-        if curr.square_length() >= self.max {
-            0
-        } else {
-            // log!(format!("iterate: start: {}", curr));
-            let mut last: Option<u32> = None;
-            for idx in 1..=self.iterations {
-                curr = curr * curr + self.c;
-                if curr.square_length() >= self.max {
-                    last = Some(idx);
-                    break;
-                }
-            }
-
-            // log!(format!("iterate: end:  {} norm: {} last: {:?}", curr, curr.square_length(), last));
-            if let Some(last) = last {
-                last
-            } else {
-                self.iterations + 1
-            }
-        }
-    }
-
-
-    fn find_escape_radius(c_norm: f64) -> f64 {
-        // Newton iteration
-        let mut radius = 2.0;
-
-        // eprintln!("find_escape_radius({}): c_norm: {}, start: {}", c, c_norm, radius);
-        for _idx in 0..100 {
-            let delta_r = radius * radius - radius - c_norm;
-
-            if delta_r >= 0.0 && delta_r.abs() <= 0.01 {
-                // eprintln!("find_escape_radius({}): loop: {} - done", c, idx);
+        // log!(format!("iterate: start: {}", curr));
+        let mut last: Option<u32> = None;
+        for idx in 1..=self.iterations {
+            curr = curr * curr + self.c;
+            if curr.square_length() >= self.max {
+                last = Some(idx);
                 break;
             }
-            let gradient =  2.0 * radius - 1.0;
-            if gradient == 0.0 {
-                log!("stuck on the zero gradient");
-                return 2.0;
-            }
-
-            let dx = -delta_r / gradient;
-
-            // eprintln!("find_escape_radius({}): loop: {} radius: {}, gradient: {} delta: {}, increment: {}",
-            //          c, idx, radius, gradient, delta_r, dx);
-            radius += dx;
         }
-        // eprintln!("find_escape_radius({}): terminating with radius: {}, delta: {}",
-        //           c, radius, (radius * radius - radius - c_norm).abs());
-        radius
+
+        // log!(format!("iterate: end:  {} norm: {} last: {:?}", curr, curr.square_length(), last));
+        if let Some(last) = last {
+            last
+        } else {
+            self.iterations + 1
+        }
     }
+
 }
 
 impl Fractal for JuliaSet {
     fn calculate<'a>(&'a mut self) -> &'a Points {
-        let performance = web_sys::window().expect("Window not found")
+        let performance = web_sys::window()
+            .expect("Window not found")
             .performance()
             .expect("performance should be available");
 
@@ -121,13 +97,15 @@ impl Fractal for JuliaSet {
         let mut x = self.x_curr;
         let mut y = self.y_curr;
 
-        let mut points_done : Option<usize> = None;
+        let mut points_done: Option<usize> = None;
         let mut last_check = 0u32;
         let mut iterations = 0u32;
 
         for count in 0..self.res.values.len() {
-            let calc = Complex::new(   x as f64 * self.scale_real + self.offset.real(),
-                                       y as f64 * self.scale_imag + self.offset.imag());
+            let calc = Complex::new(
+                x as f64 * self.scale_real + self.offset.real(),
+                y as f64 * self.scale_imag + self.offset.imag(),
+            );
             let curr = self.iterate(&calc);
             self.res.values[count] = curr;
 
@@ -167,27 +145,5 @@ impl Fractal for JuliaSet {
     fn is_done(&self) -> bool {
         self.done
     }
-
 }
 
-
-
-
-#[cfg(test)]
-mod test {
-    use super::JuliaSet;
-    use crate::complex::Complex;
-
-    #[test]
-    fn test_find_escape_radius() {
-        let c_norm = Complex::new(0.3, -0.5 ).norm();
-        let radius = JuliaSet::find_escape_radius(c);
-        assert!(radius * radius - radius >= c_norm);
-        assert!(radius * radius - radius - c_norm <= 0.01);
-
-        let c_norm = Complex::new(1.0, -1.0 ).norm();
-        let radius = JuliaSet::find_escape_radius(c);
-        assert!(radius * radius - radius >= c_norm);
-        assert!(radius * radius - radius - c_norm <= 0.01);
-    }
-}
