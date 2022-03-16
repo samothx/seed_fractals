@@ -27,7 +27,8 @@ use views::view;
 mod event_handler;
 use event_handler::{
     on_msg_cancel_edit, on_msg_draw, on_msg_edit, on_msg_mouse_down, on_msg_mouse_move,
-    on_msg_mouse_up, on_msg_save_edit, on_msg_start, on_msg_clear, on_msg_type_changed
+    on_msg_mouse_up, on_msg_save_edit, on_msg_start, on_msg_clear, on_msg_type_changed,
+    on_msg_reset_area, on_msg_reset_params, on_msg_zoom_out_area
 };
 
 use canvas::Canvas;
@@ -165,6 +166,9 @@ pub enum Msg {
     SaveEdit,
     CancelEdit,
     Draw,
+    ResetParams,
+    ResetArea,
+    ZoomOutArea,
     MouseDown(web_sys::MouseEvent),
     MouseMove(web_sys::MouseEvent),
     MouseUp(Option<web_sys::MouseEvent>),
@@ -202,6 +206,19 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             log!("Message received: SaveEdit");
             on_msg_cancel_edit(model);
         }
+        Msg::ResetParams => {
+            log!("Message received: ResetParams");
+            on_msg_reset_params(model);
+        },
+        Msg::ResetArea => {
+            log!("Message received: ResetArea");
+            on_msg_reset_area(model);
+        },
+        Msg::ZoomOutArea => {
+            log!("Message received: ZoomOutArea");
+            on_msg_zoom_out_area(model);
+        },
+    
         Msg::Draw => {
             // log!("Message received: Draw");
             on_msg_draw(model, orders);

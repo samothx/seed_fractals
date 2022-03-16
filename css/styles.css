@@ -60,6 +60,7 @@
 }
 
 .type_select_label {
+    font-size: 1em;
     margin-left: 10px;
     margin-right: 10px;
     margin-bottom: 2px;
@@ -107,6 +108,13 @@
     margin-right: auto;
 }
 
+.area_cntr {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: column;
+}
+
 .input_cntr {
     position: relative;
     display: flex;
@@ -120,6 +128,7 @@
 }
 
 .input_label {
+    font-size: 1em;
     margin-left: 10px;
     margin-right: 5px;
     margin-bottom: 10px;
@@ -127,6 +136,7 @@
 }
 
 .input {
+    font-size: 1em;
     margin-left: 5px;
     margin-right: 10px;
     margin-bottom: 10px;

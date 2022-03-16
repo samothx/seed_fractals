@@ -10,6 +10,8 @@ use super::{
     mandelbrot::Mandelbrot,
     util::{get_f64_from_input, get_u32_from_input, set_f64_on_input, set_u32_on_input},
     FractalType, Model, MouseDrag, Msg, STORAGE_KEY,
+    JULIA_DEFAULT_C, JULIA_DEFAULT_ITERATIONS, MANDELBROT_DEFAULT_ITERATIONS, JULIA_DEFAULT_X, MANDELBROT_DEFAULT_C_MIN, MANDELBROT_DEFAULT_C_MAX,
+    complex::Complex
 };
 
 pub fn on_msg_start(model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -197,58 +199,57 @@ pub fn on_msg_cancel_edit(model: &mut Model) {
 }
 
 pub fn on_msg_edit(model: &mut Model) {
+    model.edit_mode = true;
+    set_editor_fields_params(model);
+    set_editor_fields_area(model);
+}
+
+pub fn on_msg_reset_params(model: &mut Model) {
     match model.config.active_config {
         FractalType::JuliaSet => {
-            set_u32_on_input(
-                "julia_iterations",
-                model.config.julia_set_cfg.max_iterations,
-            );
-            set_f64_on_input("julia_max_real", model.config.julia_set_cfg.x_max.real());
-            set_f64_on_input("julia_min_real", model.config.julia_set_cfg.x_min.real());
-            set_f64_on_input("julia_max_imag", model.config.julia_set_cfg.x_max.imag());
-            set_f64_on_input("julia_min_imag", model.config.julia_set_cfg.x_min.imag());
-            set_f64_on_input("julia_c_real", model.config.julia_set_cfg.c.real());
-            set_f64_on_input("julia_c_imag", model.config.julia_set_cfg.c.imag());
-
-            window()
-                .document()
-                .expect("document not found")
-                .get_element_by_id("julia_edit_cntr")
-                .expect("edit_cntr not found")
-                .set_class_name("edit_cntr_visible");
-        }
+            model.config.julia_set_cfg.max_iterations = JULIA_DEFAULT_ITERATIONS;
+            model.config.julia_set_cfg.c = Complex::new(JULIA_DEFAULT_C.0, JULIA_DEFAULT_C.1);
+        }, 
         FractalType::Mandelbrot => {
-            set_u32_on_input(
-                "mandelbrot_iterations",
-                model.config.julia_set_cfg.max_iterations,
-            );
-            set_f64_on_input(
-                "mandelbrot_max_real",
-                model.config.mandelbrot_cfg.c_max.real(),
-            );
-            set_f64_on_input(
-                "mandelbrot_min_real",
-                model.config.mandelbrot_cfg.c_min.real(),
-            );
-            set_f64_on_input(
-                "mandelbrot_max_imag",
-                model.config.mandelbrot_cfg.c_max.imag(),
-            );
-            set_f64_on_input(
-                "mandelbrot_min_imag",
-                model.config.mandelbrot_cfg.c_min.imag(),
-            );
-
-            window()
-                .document()
-                .expect("document not found")
-                .get_element_by_id("mandelbrot_edit_cntr")
-                .expect("edit_cntr not found")
-                .set_class_name("edit_cntr_visible");
+            model.config.mandelbrot_cfg.max_iterations = MANDELBROT_DEFAULT_ITERATIONS;
         }
     }
-    model.edit_mode = true;
+    set_editor_fields_params(model);
 }
+
+pub fn on_msg_reset_area(model: &mut Model) {
+    match model.config.active_config {
+        FractalType::JuliaSet => {
+            model.config.julia_set_cfg.x_max = Complex::new(JULIA_DEFAULT_X.0,JULIA_DEFAULT_X.1);
+            model.config.julia_set_cfg.x_min = Complex::new(-JULIA_DEFAULT_X.0,-JULIA_DEFAULT_X.1);
+
+        }, 
+        FractalType::Mandelbrot => {
+            model.config.mandelbrot_cfg.c_max = Complex::new(MANDELBROT_DEFAULT_C_MAX.0,MANDELBROT_DEFAULT_C_MAX.1);
+            model.config.mandelbrot_cfg.c_min = Complex::new(MANDELBROT_DEFAULT_C_MIN.0,MANDELBROT_DEFAULT_C_MIN.1);
+
+        }
+    }
+    set_editor_fields_area(model);
+}
+
+pub fn on_msg_zoom_out_area(model: &mut Model) {
+    let zoom_factor = Complex::new(2.0, 0.0);
+    match model.config.active_config {
+        FractalType::JuliaSet => {
+            model.config.julia_set_cfg.x_max *= zoom_factor;
+            model.config.julia_set_cfg.x_min *= zoom_factor;
+
+        }, 
+        FractalType::Mandelbrot => {
+            model.config.mandelbrot_cfg.c_max *= zoom_factor;
+            model.config.mandelbrot_cfg.c_min *= zoom_factor;
+        }
+    }
+
+    set_editor_fields_area(model);
+}
+
 
 pub fn on_msg_mouse_down(model: &mut Model, ev: &web_sys::MouseEvent) {
     if let Some(canvas_coords) = model
@@ -396,3 +397,77 @@ fn adjust_height_to_ratio(model: &mut Model) {
     model.height = (f64::from(model.width) * dim.imag() / dim.real()) as u32; 
 }
 
+fn set_editor_fields_params(model: &Model) {
+    match model.config.active_config {
+        FractalType::JuliaSet => {
+            set_u32_on_input(
+                "julia_iterations",
+                model.config.julia_set_cfg.max_iterations,
+            );
+            set_f64_on_input("julia_c_real", model.config.julia_set_cfg.c.real());
+            set_f64_on_input("julia_c_imag", model.config.julia_set_cfg.c.imag());
+
+            window()
+                .document()
+                .expect("document not found")
+                .get_element_by_id("julia_edit_cntr")
+                .expect("edit_cntr not found")
+                .set_class_name("edit_cntr_visible");
+        }
+        FractalType::Mandelbrot => {
+            set_u32_on_input(
+                "mandelbrot_iterations",
+                model.config.julia_set_cfg.max_iterations,
+            );
+            window()
+                .document()
+                .expect("document not found")
+                .get_element_by_id("mandelbrot_edit_cntr")
+                .expect("edit_cntr not found")
+                .set_class_name("edit_cntr_visible");
+        }
+    }
+}
+
+fn set_editor_fields_area(model: &Model) {
+    match model.config.active_config {
+        FractalType::JuliaSet => {
+            set_f64_on_input("julia_max_real", model.config.julia_set_cfg.x_max.real());
+            set_f64_on_input("julia_min_real", model.config.julia_set_cfg.x_min.real());
+            set_f64_on_input("julia_max_imag", model.config.julia_set_cfg.x_max.imag());
+            set_f64_on_input("julia_min_imag", model.config.julia_set_cfg.x_min.imag());
+
+            window()
+                .document()
+                .expect("document not found")
+                .get_element_by_id("julia_edit_cntr")
+                .expect("edit_cntr not found")
+                .set_class_name("edit_cntr_visible");
+        }
+        FractalType::Mandelbrot => {
+            set_f64_on_input(
+                "mandelbrot_max_real",
+                model.config.mandelbrot_cfg.c_max.real(),
+            );
+            set_f64_on_input(
+                "mandelbrot_min_real",
+                model.config.mandelbrot_cfg.c_min.real(),
+            );
+            set_f64_on_input(
+                "mandelbrot_max_imag",
+                model.config.mandelbrot_cfg.c_max.imag(),
+            );
+            set_f64_on_input(
+                "mandelbrot_min_imag",
+                model.config.mandelbrot_cfg.c_min.imag(),
+            );
+
+            window()
+                .document()
+                .expect("document not found")
+                .get_element_by_id("mandelbrot_edit_cntr")
+                .expect("edit_cntr not found")
+                .set_class_name("edit_cntr_visible");
+        }
+    }
+}
