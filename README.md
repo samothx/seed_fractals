@@ -6,7 +6,7 @@ Seed allows you to write client side code in rust. Code is compiled to WebAssemb
 The entire project contains only a boilerplate index.html which loads the WebAssembly code and a css file.
 All other code is written in rust.
 
-A demo of the project can be seen [here](https://etnur.com/fractals).
+A demo of the project can be seen [here](https://tele-conference.de).
 
 To compile and run the project follow these steps:
 1. Make sure a recent version of rust is installed.
