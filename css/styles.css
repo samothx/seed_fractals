@@ -60,6 +60,7 @@
 }
 
 .type_select_label {
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
     font-size: 1em;
     margin-left: 10px;
     margin-right: 10px;
@@ -68,7 +69,7 @@
 }
 
 .type_select {
-    font-size: 1em;
+    font-size: 1.0em;
     min-width: 8em;
     margin-right: 10px;
     margin-left: 10px;
@@ -128,6 +129,7 @@
 }
 
 .input_label {
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
     font-size: 1em;
     margin-left: 10px;
     margin-right: 5px;
@@ -136,7 +138,7 @@
 }
 
 .input {
-    font-size: 1em;
+    font-size: 1.0em;
     margin-left: 5px;
     margin-right: 10px;
     margin-bottom: 10px;
@@ -183,12 +185,20 @@
     overflow: hidden;
 }
 .stats_text {
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
     font-size: 1em;
     overflow: hidden;
     resize: none;
 }
 
 .hint_text {
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
     font-size: 1em;
 }
 
+@media screen and (max-width: 500px) {
+    .cntct-card {
+      width: 100%;
+      min-width: 100%;
+    }
+  }
