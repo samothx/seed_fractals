@@ -185,5 +185,10 @@
 .stats_text {
     font-size: 1em;
     overflow: hidden;
+    resize: none;
+}
+
+.hint_text {
+    font-size: 1em;
 }
 

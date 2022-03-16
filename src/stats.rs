@@ -39,12 +39,16 @@ impl Stats {
     pub fn format_stats(&self) -> String {
         format!(
             "\
-Iterations: {}
-Points: {}
-Time Calc: {}
-Tot. Time: {}
+Iterations: {:.4E}
+Points:     {:.4E}
+Time Calc:  {}
+Tot. Time:  {}
+Iter/Sec:   {:.3}
+Points/Sec: {:.3}
         ",
-            self.iterations, self.points, Stats::format_time(self.time_in_fractal), Stats::format_time(self.total_time)
+            self.iterations, self.points, Stats::format_time(self.time_in_fractal),
+            Stats::format_time(self.total_time),self.iterations as f64/ self.time_in_fractal,
+            self.points as f64 / self.time_in_fractal
         )
     }
 
