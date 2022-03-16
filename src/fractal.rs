@@ -1,3 +1,5 @@
+use super::stats::Stats;
+
 const MAX_POINTS: usize = 5000;
 
 pub struct Points {
@@ -19,6 +21,6 @@ impl Default for Points {
 }
 
 pub trait Fractal {
-    fn calculate(&mut self) -> &Points;
+    fn calculate(&mut self, stats: Option<&mut Stats>) -> &Points;
     fn is_done(&self) -> bool;
 }

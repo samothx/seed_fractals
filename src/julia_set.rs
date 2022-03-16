@@ -7,6 +7,7 @@ use super::{
     complex::Complex,
     fractal::{Fractal, Points},
     Model,
+    stats::Stats
 };
 
 pub struct JuliaSet {
@@ -75,7 +76,7 @@ impl JuliaSet {
 }
 
 impl Fractal for JuliaSet {
-    fn calculate(&mut self) -> &Points {
+    fn calculate(&mut self, stats: Option<&mut Stats>) -> &Points {
         let performance = web_sys::window()
             .expect("Window not found")
             .performance()
@@ -91,8 +92,8 @@ impl Fractal for JuliaSet {
         let mut y = self.y_curr;
 
         let mut points_done: Option<usize> = None;
-        let mut last_check = 0u32;
-        let mut iterations = 0u32;
+        let mut last_check = 0usize;
+        let mut iterations = 0usize;
 
         for count in 0..self.res.values.len() {
             let calc = Complex::new(
@@ -114,7 +115,7 @@ impl Fractal for JuliaSet {
                 }
             }
 
-            iterations += if curr == 0 { 1 } else { curr };
+            iterations += if curr == 0 { 1 } else { curr as usize };
             if iterations - last_check > 100 {
                 last_check = iterations;
                 if performance.now() - start >= MAX_DURATION {
@@ -126,11 +127,15 @@ impl Fractal for JuliaSet {
         if let Some(points) = points_done {
             self.res.num_points = points;
         } else {
-            self.res.num_points = self.res.values.len() + 1;
+            self.res.num_points = self.res.values.len();
         }
 
         self.x_curr = x;
         self.y_curr = y;
+
+        if let Some(stats) = stats {
+            stats.update(iterations, self.res.num_points, start);
+        }
 
         &self.res
     }
