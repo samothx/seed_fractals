@@ -272,15 +272,24 @@ pub fn on_msg_reset_area(model: &mut Model) {
 }
 
 pub fn on_msg_zoom_out_area(model: &mut Model) {
-    let zoom_factor = Complex::new(2.0, 0.0);
     match model.config.active_config {
         FractalType::JuliaSet => {
-            model.config.julia_set_cfg.x_max *= zoom_factor;
-            model.config.julia_set_cfg.x_min *= zoom_factor;
+            let increment = Complex::new(
+                (model.config.julia_set_cfg.x_max.real() - model.config.julia_set_cfg.x_min.real()).abs() / 2.0,
+                (model.config.julia_set_cfg.x_max.imag() - model.config.julia_set_cfg.x_min.imag()).abs() / 2.0
+            );
+
+            model.config.julia_set_cfg.x_max += increment;
+            model.config.julia_set_cfg.x_min -= increment;
         }
         FractalType::Mandelbrot => {
-            model.config.mandelbrot_cfg.c_max *= zoom_factor;
-            model.config.mandelbrot_cfg.c_min *= zoom_factor;
+            let increment = Complex::new(
+                (model.config.mandelbrot_cfg.c_max.real() - model.config.mandelbrot_cfg.c_min.real()).abs() / 2.0,
+                (model.config.mandelbrot_cfg.c_max.imag() - model.config.mandelbrot_cfg.c_min.imag()).abs() / 2.0
+            );
+
+            model.config.mandelbrot_cfg.c_max += increment;
+            model.config.mandelbrot_cfg.c_min -= increment;
         }
     }
 
@@ -453,7 +462,7 @@ fn set_editor_fields_params(model: &Model) {
         FractalType::Mandelbrot => {
             set_u32_on_input(
                 "mandelbrot_iterations",
-                model.config.julia_set_cfg.max_iterations,
+                model.config.mandelbrot_cfg.max_iterations,
             );
             window()
                 .document()

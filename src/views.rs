@@ -57,6 +57,7 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
             id!("start"),
             ev(Ev::Click, |_| Msg::Start),
             IF!(!model.paused =>  attrs!{At::Disabled => "true" } ),
+            IF!(model.edit_mode =>  attrs!{At::Disabled => "true" } ),
             "Start"
         ],
         button![
@@ -123,7 +124,7 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
                 attrs! {
                    // At::Value => model.stats_text,
                    At::ReadOnly => "true",
-                   At::Rows => "4",
+                   At::Rows => "6",
                    At::Placeholder => "No Stats yet"
                 },
                 model.stats_text.as_str()
@@ -137,6 +138,11 @@ fn view_julia_set_cfg_editor() -> Node<Msg> {
     div![
         C!["edit_cntr_hidden"],
         id!("julia_edit_cntr"),
+        div![
+            C!["input_cntr"],
+            p![ C!["hint_text"],
+                "Hint: You can select a rectangle in the draw area to import the coordiates into the editor."],
+        ],
         div![
             C!["input_cntr"],
             div![
@@ -323,6 +329,12 @@ fn view_mandelbrot_cfg_editor() -> Node<Msg> {
     div![
         C!["edit_cntr_hidden"],
         id!("mandelbrot_edit_cntr"),
+
+        div![
+            C!["input_cntr"],
+            p![ C!["hint_text"],
+                "Hint: You can select a rectangle in the draw area to import the coordiates into the editor."],
+        ],    
         div![
             C!["input_cntr"],
             div![

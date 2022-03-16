@@ -103,7 +103,7 @@ impl Fractal for JuliaSet {
             let curr = self.iterate(&calc);
             self.res.values[count] = curr;
 
-            if x < self.width {
+            if x < self.width - 1{
                 x += 1;
             } else {
                 x = 0;
@@ -115,7 +115,7 @@ impl Fractal for JuliaSet {
                 }
             }
 
-            iterations += if curr == 0 { 1 } else { curr as usize };
+            iterations +=  curr as usize;
             if iterations - last_check > 100 {
                 last_check = iterations;
                 if performance.now() - start >= MAX_DURATION {
