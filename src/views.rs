@@ -76,6 +76,7 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
             C!["menu_button"],
             id!("edit"),
             ev(Ev::Click, |_| Msg::Edit),
+            IF!(model.edit_mode =>  attrs!{At::Disabled => "true" } ),
             "Edit"
         ],
         label![
@@ -92,6 +93,7 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
             option![attrs! {At::Value => "type_mandelbrot" }, "Mandelbrot Set"],
             option![attrs! {At::Value => "type_julia_set" }, "Julia Set"],
             IF!(!model.paused =>  attrs!{At::Disabled => "true" } ),
+            IF!(model.edit_mode =>  attrs!{At::Disabled => "true" } ),
             ev(Ev::Change, |_| Msg::TypeChanged),
         ]
     ]]
@@ -159,81 +161,111 @@ fn view_julia_set_cfg_editor() -> Node<Msg> {
                     },
                 ],
             ],
+            button![
+                C!["editor_button"],
+                id!("julia_reset_params"),
+                ev(Ev::Click, |_| Msg::ResetParams),
+                "Reset to Default",
+                ev(Ev::Click, |_| Msg::ResetParams),
+            ]
         ],
         div![
             C!["input_cntr"],
             div![
-                C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "julia_max_real"},
-                    "Max. Real"
+                C!["area_cntr"],
+                div![
+                    C!["input_inner"],
+                    label![
+                        C!["input_label"],
+                        attrs! { At::For => "julia_max_real"},
+                        "Max. Real"
+                    ],
+                    input![
+                        C!["input"],
+                        id!("julia_max_real"),
+                        attrs! {
+                            At::Name => "julia_max_real",
+                            At::Type => "number",
+                            At::Step => "0.01",
+                            //At::Value => {model.x_max.to_string()},
+                        },
+                    ]
                 ],
-                input![
-                    C!["input"],
-                    id!("julia_max_real"),
-                    attrs! {
-                        At::Name => "julia_max_real",
-                        At::Type => "number",
-                        At::Step => "0.01",
-                        //At::Value => {model.x_max.to_string()},
-                    },
-                ]
+                div![
+                    C!["input_inner"],
+                    label![
+                        C!["input_label"],
+                        attrs! { At::For => "julia_min_real"},
+                        "Min. Real"
+                    ],
+                    input![
+                        C!["input"],
+                        id!("julia_min_real"),
+                        attrs! {
+                            At::Name => "julia_min_real",
+                            At::Type => "number",
+                            At::Step => "0.01",
+                            //At::Value => {model.x_min.to_string()},
+                        },
+                    ]
+                ],
             ],
             div![
-                C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "julia_min_real"},
-                    "Min. Real"
+                C!["area_cntr"],
+                div![
+                    C!["input_inner"],
+                    label![
+                        C!["input_label"],
+                        attrs! { At::For => "julia_max_imag"},
+                        "Max. Imag."
+                    ],
+                    input![
+                        C!["input"],
+                        id!("julia_max_imag"),
+                        attrs! {
+                            At::Name => "julia_max_imag",
+                            At::Type => "number",
+                            At::Step => "0.01",
+                            //At::Value => {model.y_max.to_string()},
+                        },
+                    ]
                 ],
-                input![
-                    C!["input"],
-                    id!("julia_min_real"),
-                    attrs! {
-                        At::Name => "julia_min_real",
-                        At::Type => "number",
-                        At::Step => "0.01",
-                        //At::Value => {model.x_min.to_string()},
-                    },
-                ]
+                div![
+                    C!["input_inner"],
+                    label![
+                        C!["input_label"],
+                        attrs! { At::For => "julia_min_imag"},
+                        "Min. Imag."
+                    ],
+                    input![
+                        C!["input"],
+                        id!("julia_min_imag"),
+                        attrs! {
+                            At::Name => "julia_min_imag",
+                            At::Type => "number",
+                            At::Step => "0.01",
+                            //At::Value => {model.y_min.to_string()},
+                        },
+                    ]
+                ],
             ],
             div![
-                C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "julia_max_imag"},
-                    "Max. Imag."
+                C!["area_cntr"],
+                button![
+                    C!["editor_button"],
+                    id!("julia_reset_params"),
+                    ev(Ev::Click, |_| Msg::ResetParams),
+                    "Reset to Default",
+                    ev(Ev::Click, |_| Msg::ResetArea),
                 ],
-                input![
-                    C!["input"],
-                    id!("julia_max_imag"),
-                    attrs! {
-                        At::Name => "julia_max_imag",
-                        At::Type => "number",
-                        At::Step => "0.01",
-                        //At::Value => {model.y_max.to_string()},
-                    },
+                button![
+                    C!["editor_button"],
+                    id!("julia_reset_params"),
+                    ev(Ev::Click, |_| Msg::ResetParams),
+                    "Zoom Out",
+                    ev(Ev::Click, |_| Msg::ZoomOutArea),
                 ]
-            ],
-            div![
-                C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "julia_min_imag"},
-                    "Min. Imag."
-                ],
-                input![
-                    C!["input"],
-                    id!("julia_min_imag"),
-                    attrs! {
-                        At::Name => "julia_min_imag",
-                        At::Type => "number",
-                        At::Step => "0.01",
-                        //At::Value => {model.y_min.to_string()},
-                    },
-                ]
-            ],
+            ]
         ],
         div![
             C!["edit_button_cntr"],
@@ -279,81 +311,111 @@ fn view_mandelbrot_cfg_editor() -> Node<Msg> {
                     },
                 ],
             ],
+            button![
+                C!["editor_button"],
+                id!("julia_reset_params"),
+                ev(Ev::Click, |_| Msg::ResetParams),
+                "Reset to Default",
+                ev(Ev::Click, |_| Msg::ResetParams),
+            ]
         ],
         div![
             C!["input_cntr"],
             div![
-                C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "mandelbrot_max_real"},
-                    "Max. Real"
+                C!["area_cntr"],
+                div![
+                    C!["input_inner"],
+                    label![
+                        C!["input_label"],
+                        attrs! { At::For => "mandelbrot_max_real"},
+                        "Max. Real"
+                    ],
+                    input![
+                        C!["input"],
+                        id!("mandelbrot_max_real"),
+                        attrs! {
+                            At::Name => "mandelbrot_max_real",
+                            At::Type => "number",
+                            At::Step => "0.01",
+                            //At::Value => {model.x_max.to_string()},
+                        },
+                    ]
                 ],
-                input![
-                    C!["input"],
-                    id!("mandelbrot_max_real"),
-                    attrs! {
-                        At::Name => "mandelbrot_max_real",
-                        At::Type => "number",
-                        At::Step => "0.01",
-                        //At::Value => {model.x_max.to_string()},
-                    },
-                ]
+                div![
+                    C!["input_inner"],
+                    label![
+                        C!["input_label"],
+                        attrs! { At::For => "mandelbrot_min_real"},
+                        "Min. Real"
+                    ],
+                    input![
+                        C!["input"],
+                        id!("mandelbrot_min_real"),
+                        attrs! {
+                            At::Name => "mandelbrot_min_real",
+                            At::Type => "number",
+                            At::Step => "0.01",
+                            //At::Value => {model.x_min.to_string()},
+                        },
+                    ]
+                ],
             ],
             div![
-                C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "mandelbrot_min_real"},
-                    "Min. Real"
+                C!["area_cntr"],
+                div![
+                    C!["input_inner"],
+                    label![
+                        C!["input_label"],
+                        attrs! { At::For => "mandelbrot_max_imag"},
+                        "Max. Imag."
+                    ],
+                    input![
+                        C!["input"],
+                        id!("mandelbrot_max_imag"),
+                        attrs! {
+                            At::Name => "mandelbrot_max_imag",
+                            At::Type => "number",
+                            At::Step => "0.01",
+                            //At::Value => {model.y_max.to_string()},
+                        },
+                    ]
                 ],
-                input![
-                    C!["input"],
-                    id!("mandelbrot_min_real"),
-                    attrs! {
-                        At::Name => "mandelbrot_min_real",
-                        At::Type => "number",
-                        At::Step => "0.01",
-                        //At::Value => {model.x_min.to_string()},
-                    },
-                ]
+                div![
+                    C!["input_inner"],
+                    label![
+                        C!["input_label"],
+                        attrs! { At::For => "mandelbrot_min_imag"},
+                        "Min. Imag."
+                    ],
+                    input![
+                        C!["input"],
+                        id!("mandelbrot_min_imag"),
+                        attrs! {
+                            At::Name => "mandelbrot_min_imag",
+                            At::Type => "number",
+                            At::Step => "0.01",
+                            //At::Value => {model.y_min.to_string()},
+                        },
+                    ]
+                ],
             ],
             div![
-                C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "mandelbrot_max_imag"},
-                    "Max. Imag."
+                C!["area_cntr"],
+                button![
+                    C!["editor_button"],
+                    id!("julia_reset_params"),
+                    ev(Ev::Click, |_| Msg::ResetParams),
+                    "Reset to Default",
+                    ev(Ev::Click, |_| Msg::ResetArea),
                 ],
-                input![
-                    C!["input"],
-                    id!("mandelbrot_max_imag"),
-                    attrs! {
-                        At::Name => "mandelbrot_max_imag",
-                        At::Type => "number",
-                        At::Step => "0.01",
-                        //At::Value => {model.y_max.to_string()},
-                    },
+                button![
+                    C!["editor_button"],
+                    id!("julia_reset_params"),
+                    ev(Ev::Click, |_| Msg::ResetParams),
+                    "Zoom Out",
+                    ev(Ev::Click, |_| Msg::ZoomOutArea),
                 ]
-            ],
-            div![
-                C!["input_inner"],
-                label![
-                    C!["input_label"],
-                    attrs! { At::For => "mandelbrot_min_imag"},
-                    "Min. Imag."
-                ],
-                input![
-                    C!["input"],
-                    id!("mandelbrot_min_imag"),
-                    attrs! {
-                        At::Name => "mandelbrot_min_imag",
-                        At::Type => "number",
-                        At::Step => "0.01",
-                        //At::Value => {model.y_min.to_string()},
-                    },
-                ]
-            ],
+            ]
         ],
         div![
             C!["edit_button_cntr"],
