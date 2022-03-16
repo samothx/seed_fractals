@@ -8,36 +8,42 @@ pub fn view(model: &Model) -> Node<Msg> {
         C!["outer_cntr"],
         IF![model.config.active_config == FractalType::Mandelbrot => h1!["Mandelbrot Set"]],
         IF![model.config.active_config == FractalType::JuliaSet => h1!["Julia Set"]],
-        view_buttons(model),
-        view_julia_set_cfg_editor(),
-        view_mandelbrot_cfg_editor(),
         div![
-            C!["canvas_cntr"],
-            canvas![
-                C!["canvas"],
-                id!("canvas"),
-                attrs! {
-                    At::Width => model.width.to_string(),
-                    At::Height => model.height.to_string()
-                },
-                "Your browser does not support the canvas tag.",
-                IF!(model.edit_mode =>
-                        ev(Ev::MouseDown, |event| {
-                            let mouse_event: web_sys::MouseEvent = event.unchecked_into();
-                            Msg::MouseDown(mouse_event)})
-                ),
-                IF!(model.mouse_drag.is_some() =>
-                    vec![
-                        ev(Ev::MouseMove, |event| {
-                            let mouse_event: web_sys::MouseEvent = event.unchecked_into();
-                            Msg::MouseMove(mouse_event)
-                        }),
-                        ev(Ev::MouseUp, |event| {
-                            let mouse_event: web_sys::MouseEvent = event.unchecked_into();
-                            Msg::MouseUp(Some(mouse_event))
-                        })
+            C!["inner_cntr"],
+            view_buttons(model),
+            div![
+                C!["fractal_container"],
+                view_julia_set_cfg_editor(),
+                view_mandelbrot_cfg_editor(),
+                div![
+                    C!["canvas_cntr"],
+                    canvas![
+                        C!["canvas"],
+                        id!("canvas"),
+                        attrs! {
+                            At::Width => model.width.to_string(),
+                            At::Height => model.height.to_string()
+                        },
+                        "Your browser does not support the canvas tag.",
+                        IF!(model.edit_mode =>
+                                ev(Ev::MouseDown, |event| {
+                                    let mouse_event: web_sys::MouseEvent = event.unchecked_into();
+                                    Msg::MouseDown(mouse_event)})
+                        ),
+                        IF!(model.mouse_drag.is_some() =>
+                            vec![
+                                ev(Ev::MouseMove, |event| {
+                                    let mouse_event: web_sys::MouseEvent = event.unchecked_into();
+                                    Msg::MouseMove(mouse_event)
+                                }),
+                                ev(Ev::MouseUp, |event| {
+                                    let mouse_event: web_sys::MouseEvent = event.unchecked_into();
+                                    Msg::MouseUp(Some(mouse_event))
+                                })
+                            ]
+                        ),
                     ]
-                ),
+                ]
             ]
         ]
     ]
@@ -47,33 +53,33 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
     vec![div![
         C!["button_cntr"],
         button![
-            C!["button"],
+            C!["menu_button"],
             id!("start"),
             ev(Ev::Click, |_| Msg::Start),
             IF!(!model.paused =>  attrs!{At::Disabled => "true" } ),
             "Start"
         ],
         button![
-            C!["button"],
+            C!["menu_button"],
             id!("pause"),
             ev(Ev::Click, |_| Msg::Stop),
             IF!(model.paused =>  attrs!{At::Disabled => "true" } ),
             "Pause"
         ],
         button![
-            C!["button"],
+            C!["menu_button"],
             id!("clear"),
             ev(Ev::Click, |_| Msg::Clear),
             "Clear"
         ],
         button![
-            C!["button"],
+            C!["menu_button"],
             id!("edit"),
             ev(Ev::Click, |_| Msg::Edit),
             "Edit"
         ],
         label![
-            C!["input_label"],
+            C!["type_select_label"],
             attrs! { At::For => "type_select"},
             "Select Type"
         ],
@@ -230,15 +236,15 @@ fn view_julia_set_cfg_editor() -> Node<Msg> {
             ],
         ],
         div![
-            C!["button_cntr"],
+            C!["edit_button_cntr"],
             button![
-                C!["button"],
+                C!["editor_button"],
                 id!("julia_save"),
                 ev(Ev::Click, |_| Msg::SaveEdit),
                 "Save"
             ],
             button![
-                C!["button"],
+                C!["editor_button"],
                 id!("julia_cancel"),
                 ev(Ev::Click, |_| Msg::CancelEdit),
                 "Cancel"
@@ -350,15 +356,15 @@ fn view_mandelbrot_cfg_editor() -> Node<Msg> {
             ],
         ],
         div![
-            C!["button_cntr"],
+            C!["edit_button_cntr"],
             button![
-                C!["button"],
+                C!["editor_button"],
                 id!("mandelbrot_save"),
                 ev(Ev::Click, |_| Msg::SaveEdit),
                 "Save"
             ],
             button![
-                C!["button"],
+                C!["editor_button"],
                 id!("mandelbrot_cancel"),
                 ev(Ev::Click, |_| Msg::CancelEdit),
                 "Cancel"
