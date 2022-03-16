@@ -100,8 +100,8 @@ pub fn find_escape_radius(c_norm: f64) -> f64 {
     } else {
         2.0
     }
-
 }
+
 
 #[cfg(test)]
 mod test {

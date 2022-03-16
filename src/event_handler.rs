@@ -13,12 +13,13 @@ use super::{
 };
 
 pub fn on_msg_start(model: &mut Model, orders: &mut impl Orders<Msg>) {
-    if model.canvas.is_none() {
+    if let Some(canvas) = model.canvas.as_ref() {
+        canvas.clear_canvas(model);
+    } else {
         let canvas = Canvas::new(model);
         canvas.clear_canvas(model);
         model.canvas = Some(canvas);
     }
-    log!("Message received: Start, creating fractal");
 
     match model.config.active_config {
         FractalType::JuliaSet => {
@@ -157,6 +158,8 @@ pub fn on_msg_save_edit(model: &mut Model, orders: &mut impl Orders<Msg>) {
                 model.config.mandelbrot_cfg.c_min.set_imag(value);
             }
 
+
+
             document
                 .get_element_by_id("mandelbrot_edit_cntr")
                 .expect("edit_cntr not found")
@@ -164,6 +167,8 @@ pub fn on_msg_save_edit(model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
     }
     LocalStorage::insert(STORAGE_KEY, &model.config).expect("save data to LocalStorage");
+
+    adjust_height_to_ratio(model);
 
     // TODO: save to local storage
     orders.after_next_render(|_| Msg::Clear);
@@ -378,3 +383,16 @@ pub fn on_msg_mouse_up(model: &mut Model, ev: Option<web_sys::MouseEvent>) {
         model.mouse_drag = None;
     }
 }
+
+fn adjust_height_to_ratio(model: &mut Model) {
+    let dim = match model.config.active_config {
+        FractalType::JuliaSet => {
+            model.config.julia_set_cfg.x_max - model.config.julia_set_cfg.x_min
+        },
+        FractalType::Mandelbrot => {
+            model.config.mandelbrot_cfg.c_max - model.config.mandelbrot_cfg.c_min
+        }        
+    };   
+    model.height = (f64::from(model.width) * dim.imag() / dim.real()) as u32; 
+}
+

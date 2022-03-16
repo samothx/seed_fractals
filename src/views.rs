@@ -64,7 +64,7 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
             id!("pause"),
             ev(Ev::Click, |_| Msg::Stop),
             IF!(model.paused =>  attrs!{At::Disabled => "true" } ),
-            "Pause"
+            "Stop"
         ],
         button![
             C!["menu_button"],
