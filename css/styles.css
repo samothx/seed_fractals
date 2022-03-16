@@ -6,37 +6,80 @@
     margin-left: auto;
     margin-right: auto;
     width: 100%;
-    background-color: rgba(128, 255, 128, 30%);
+    background-color: whitesmoke;
     min-width: 430px;
-    border-radius: 25px;
-    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.6);
 }
 
-.button_cntr {
+.inner_cntr {
     position: relative;
     display: flex;
-    flex-wrap: wrap;
     flex-direction: row;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-around;
     margin-left: auto;
     margin-right: auto;
 }
 
-.button {
+.fractal_cntr {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-around;
+    margin-left: auto;
+    margin-right: auto;
+    background-color: beige;
+}
+
+.button_cntr {
+    font-size: 1em;
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    margin-left: auto;
+    margin-right: auto;
+    background-color: lightblue;
+    margin-left: 10px;
+    margin-right: 10px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.6);
+}
+
+
+.menu_button {
+    font-size: 1em;
     min-width: 8em;
     margin-right: 10px;
     margin-left: 10px;
     margin-bottom: 10px;
     margin-top: 10px;
+    border-radius: 25px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.6);
+}
+
+.type_select_label {
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-bottom: 2px;
+    margin-top: 2px;
+}
+
+.type_select {
+    font-size: 1em;
+    min-width: 8em;
+    margin-right: 10px;
+    margin-left: 10px;
+    margin-bottom: 10px;
+    margin-top: 2px;
 }
 
 .edit_cntr_hidden {
     position: relative;
     display: flex;
     flex-direction: column;
-    background-color: lightgray;
-    border-radius: 25px;
+    background-color: lightblue;
     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.6);
     height: 0px;
     overflow: hidden;
@@ -46,10 +89,22 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    background-color: lightgray;
-    border-radius: 25px;
+    background-color: lightblue;
     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.6);
     overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.edit_button_cntr {
+    font-size: 1em;
+    position: relative;
+    display: flex;
+    flex-wrap: nowrap;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .input_cntr {
@@ -70,6 +125,7 @@
     margin-bottom: 10px;
     margin-top: 10px;
 }
+
 .input {
     margin-left: 5px;
     margin-right: 10px;
@@ -77,19 +133,25 @@
     margin-top: 10px;
 }
 
-.canvas_cntr {
-    background-color: darkgray;
+.editor_button {
+    font-size: 1em;
+    min-width: 8em;
+    margin-right: 10px;
+    margin-left: 10px;
+    margin-bottom: 10px;
+    margin-top: 10px;
     border-radius: 25px;
     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.6);
-    margin-top: 10px;
-    margin-bottom: 10px;
+}
+
+.canvas_cntr {
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.6);
+    width: 100%;
+    height: 100%;
 }
 
 
 .canvas {
-    margin-top: 20px;
-    margin-bottom: 20px;
-    margin-left: 20px;
-    margin-right: 20px;
+    width: 100%;
 }
 

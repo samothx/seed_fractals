@@ -66,8 +66,7 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
         fractal: None,
         mouse_drag: None,
         paused: true,
-        edit_mode: false,
-        active_config: FractalType::JuliaSet,
+        edit_mode: false,    
     }
 }
 
@@ -84,16 +83,25 @@ pub struct Model {
     fractal: Option<Box<dyn Fractal>>,
     mouse_drag: Option<MouseDrag>,
     paused: bool,
-    edit_mode: bool,
-    active_config: FractalType,
+    edit_mode: bool
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 struct Config {
+    active_config: FractalType,
     julia_set_cfg: JuliaSetCfg,
     mandelbrot_cfg: MandelbrotCfg,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            active_config: FractalType::Mandelbrot,
+            julia_set_cfg: JuliaSetCfg::default(),
+            mandelbrot_cfg: MandelbrotCfg::default()
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 struct JuliaSetCfg {
@@ -131,7 +139,7 @@ impl Default for MandelbrotCfg {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 enum FractalType {
     Mandelbrot,
     JuliaSet,
@@ -150,7 +158,7 @@ struct MouseDrag {
 #[derive(Clone)]
 pub enum Msg {
     Start,
-    Pause,
+    Stop,
     Clear,
     TypeChanged,
     Edit,
@@ -168,8 +176,8 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             log!("Message received: Start");
             on_msg_start(model, orders);
         }
-        Msg::Pause => {
-            log!("Message received: Pause");
+        Msg::Stop => {
+            log!("Message received: Stop");
             model.paused = true;
         }
         Msg::Clear => {
