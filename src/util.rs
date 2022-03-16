@@ -111,12 +111,12 @@ mod test {
     #[test]
     fn test_find_escape_radius() {
         let c_norm = Complex::new(0.3, -0.5).norm();
-        let radius = find_escape_radius(c);
+        let radius = find_escape_radius(c_norm);
         assert!(radius * radius - radius >= c_norm);
         assert!(radius * radius - radius - c_norm <= 0.01);
 
         let c_norm = Complex::new(1.0, -1.0).norm();
-        let radius = find_escape_radius(c);
+        let radius = find_escape_radius(c_norm);
         assert!(radius * radius - radius >= c_norm);
         assert!(radius * radius - radius - c_norm <= 0.01);
     }

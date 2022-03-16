@@ -15,6 +15,8 @@ use fractal::Fractal;
 
 mod julia_set;
 mod mandelbrot;
+mod stats;
+use stats::Stats;
 
 pub mod util;
 // use util::{get_f64_from_input, get_u32_from_input};
@@ -28,7 +30,7 @@ mod event_handler;
 use event_handler::{
     on_msg_cancel_edit, on_msg_draw, on_msg_edit, on_msg_mouse_down, on_msg_mouse_move,
     on_msg_mouse_up, on_msg_save_edit, on_msg_start, on_msg_clear, on_msg_type_changed,
-    on_msg_reset_area, on_msg_reset_params, on_msg_zoom_out_area
+    on_msg_reset_area, on_msg_reset_params, on_msg_zoom_out_area, on_msg_stats_changed
 };
 
 use canvas::Canvas;
@@ -49,7 +51,7 @@ const ENTER_KEY: &str = "Enter";
 const BACKGROUND_COLOR: &str = "#000000";
 const STORAGE_KEY: &str = "seed_fractals_v1";
 
-const MAX_DURATION: f64 = 0.3;
+const MAX_DURATION: f64 = 200.0;
 
 // ------ ------
 //     Init
@@ -67,7 +69,9 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
         fractal: None,
         mouse_drag: None,
         paused: true,
-        edit_mode: false,    
+        edit_mode: false,
+        stats_text: "".to_string(),
+        stats: None    
     }
 }
 
@@ -84,11 +88,14 @@ pub struct Model {
     fractal: Option<Box<dyn Fractal>>,
     mouse_drag: Option<MouseDrag>,
     paused: bool,
-    edit_mode: bool
+    edit_mode: bool,
+    stats_text: String,
+    stats: Option<Stats>
 }
 
 #[derive(Serialize, Deserialize)]
 struct Config {
+    view_stats: bool,
     active_config: FractalType,
     julia_set_cfg: JuliaSetCfg,
     mandelbrot_cfg: MandelbrotCfg,
@@ -97,6 +104,7 @@ struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            view_stats: false,
             active_config: FractalType::Mandelbrot,
             julia_set_cfg: JuliaSetCfg::default(),
             mandelbrot_cfg: MandelbrotCfg::default()
@@ -165,6 +173,7 @@ pub enum Msg {
     Edit,
     SaveEdit,
     CancelEdit,
+    StatsChanged,
     Draw,
     ResetParams,
     ResetArea,
@@ -218,7 +227,10 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             log!("Message received: ZoomOutArea");
             on_msg_zoom_out_area(model);
         },
-    
+        Msg::StatsChanged => {
+            log!("Message received: StatsChanged");
+            on_msg_stats_changed(model);
+        },
         Msg::Draw => {
             // log!("Message received: Draw");
             on_msg_draw(model, orders);

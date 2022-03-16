@@ -1,18 +1,19 @@
 use std::cmp::Ordering;
 
-#[allow(clippy::wildcard_imports)]
-use seed::{prelude::*, *};
-use seed::prelude::web_sys::HtmlSelectElement;
 use super::{
     canvas::Canvas,
+    complex::Complex,
     fractal::Fractal,
     julia_set::JuliaSet,
     mandelbrot::Mandelbrot,
+    stats::Stats,
     util::{get_f64_from_input, get_u32_from_input, set_f64_on_input, set_u32_on_input},
-    FractalType, Model, MouseDrag, Msg, STORAGE_KEY,
-    JULIA_DEFAULT_C, JULIA_DEFAULT_ITERATIONS, MANDELBROT_DEFAULT_ITERATIONS, JULIA_DEFAULT_X, MANDELBROT_DEFAULT_C_MIN, MANDELBROT_DEFAULT_C_MAX,
-    complex::Complex
+    FractalType, Model, MouseDrag, Msg, JULIA_DEFAULT_C, JULIA_DEFAULT_ITERATIONS, JULIA_DEFAULT_X,
+    MANDELBROT_DEFAULT_C_MAX, MANDELBROT_DEFAULT_C_MIN, MANDELBROT_DEFAULT_ITERATIONS, STORAGE_KEY,
 };
+use seed::prelude::web_sys::{HtmlInputElement, HtmlSelectElement};
+#[allow(clippy::wildcard_imports)]
+use seed::{prelude::*, *};
 
 pub fn on_msg_start(model: &mut Model, orders: &mut impl Orders<Msg>) {
     if let Some(canvas) = model.canvas.as_ref() {
@@ -23,6 +24,10 @@ pub fn on_msg_start(model: &mut Model, orders: &mut impl Orders<Msg>) {
         model.canvas = Some(canvas);
     }
 
+    if model.config.view_stats {
+        model.stats = Some(Stats::new());
+        model.stats_text = String::new();
+    }
     match model.config.active_config {
         FractalType::JuliaSet => {
             let mut fractal = JuliaSet::new(model);
@@ -30,7 +35,12 @@ pub fn on_msg_start(model: &mut Model, orders: &mut impl Orders<Msg>) {
                 .canvas
                 .as_ref()
                 .expect("unexpected missing canvas")
-                .draw_results(fractal.calculate());
+                .draw_results(fractal.calculate(model.stats.as_mut()));
+
+            if let Some(stats) = model.stats.as_ref() {
+                model.stats_text = stats.format_stats();
+            }
+
             model.fractal = Some(Box::new(fractal));
         }
         FractalType::Mandelbrot => {
@@ -39,7 +49,10 @@ pub fn on_msg_start(model: &mut Model, orders: &mut impl Orders<Msg>) {
                 .canvas
                 .as_ref()
                 .expect("unexpected missing canvas")
-                .draw_results(fractal.calculate());
+                .draw_results(fractal.calculate(model.stats.as_mut()));
+            if let Some(stats) = model.stats.as_ref() {
+                model.stats_text = stats.format_stats();
+            }
             model.fractal = Some(Box::new(fractal));
         }
     }
@@ -52,6 +65,12 @@ pub fn on_msg_clear(model: &mut Model) {
     if !model.paused {
         model.paused = true;
     }
+
+    if model.config.view_stats {
+        model.stats = Some(Stats::new());
+        model.stats_text = String::new();
+    }
+
     model.fractal = None;
     if model.canvas.is_none() {
         let canvas = Canvas::new(model);
@@ -68,20 +87,38 @@ pub fn on_msg_clear(model: &mut Model) {
 
 pub fn on_msg_type_changed(model: &mut Model) {
     let selected = window()
-    .document()
-    .expect("document not found in window")
-    .get_element_by_id("type_select")
-    .expect("type_select not found")
-    .dyn_into::<HtmlSelectElement>()
-    .expect("type_select is not a HtmlSelectElement")
-    .value();
+        .document()
+        .expect("document not found in window")
+        .get_element_by_id("type_select")
+        .expect("type_select not found")
+        .dyn_into::<HtmlSelectElement>()
+        .expect("type_select is not a HtmlSelectElement")
+        .value();
 
     model.config.active_config = match selected.as_str() {
         "type_mandelbrot" => FractalType::Mandelbrot,
         "type_julia_set" => FractalType::JuliaSet,
         _ => model.config.active_config,
     };
+}
 
+pub fn on_msg_stats_changed(model: &mut Model) {
+    let stats_cb = window()
+        .document()
+        .expect("document not found")
+        .get_element_by_id("stats_cb")
+        .expect("stats checkbox not found")
+        .dyn_into::<HtmlInputElement>()
+        .expect("Failed to cast to HtmlInputElement");
+    model.config.view_stats = stats_cb.checked();
+    LocalStorage::insert(STORAGE_KEY, &model.config).expect("save data to LocalStorage");
+    if model.config.view_stats {
+        model.stats = Some(Stats::new());
+        model.stats_text = String::new();
+    } else {
+        model.stats = None;
+        model.stats_text = String::new();
+    }
 }
 
 pub fn on_msg_draw(model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -91,14 +128,17 @@ pub fn on_msg_draw(model: &mut Model, orders: &mut impl Orders<Msg>) {
             .canvas
             .as_ref()
             .expect("unexpected missing canvas")
-            .draw_results(fractal.calculate());
+            .draw_results(fractal.calculate(model.stats.as_mut()));
+        if let Some(stats) = model.stats.as_ref() {
+            model.stats_text = stats.format_stats();
+        }
+
         if fractal.is_done() {
             model.paused = true;
         } else {
             orders.after_next_render(|_| Msg::Draw);
         }
     }
-
 }
 
 pub fn on_msg_save_edit(model: &mut Model, orders: &mut impl Orders<Msg>) {
@@ -160,8 +200,6 @@ pub fn on_msg_save_edit(model: &mut Model, orders: &mut impl Orders<Msg>) {
                 model.config.mandelbrot_cfg.c_min.set_imag(value);
             }
 
-
-
             document
                 .get_element_by_id("mandelbrot_edit_cntr")
                 .expect("edit_cntr not found")
@@ -209,7 +247,7 @@ pub fn on_msg_reset_params(model: &mut Model) {
         FractalType::JuliaSet => {
             model.config.julia_set_cfg.max_iterations = JULIA_DEFAULT_ITERATIONS;
             model.config.julia_set_cfg.c = Complex::new(JULIA_DEFAULT_C.0, JULIA_DEFAULT_C.1);
-        }, 
+        }
         FractalType::Mandelbrot => {
             model.config.mandelbrot_cfg.max_iterations = MANDELBROT_DEFAULT_ITERATIONS;
         }
@@ -220,14 +258,14 @@ pub fn on_msg_reset_params(model: &mut Model) {
 pub fn on_msg_reset_area(model: &mut Model) {
     match model.config.active_config {
         FractalType::JuliaSet => {
-            model.config.julia_set_cfg.x_max = Complex::new(JULIA_DEFAULT_X.0,JULIA_DEFAULT_X.1);
-            model.config.julia_set_cfg.x_min = Complex::new(-JULIA_DEFAULT_X.0,-JULIA_DEFAULT_X.1);
-
-        }, 
+            model.config.julia_set_cfg.x_max = Complex::new(JULIA_DEFAULT_X.0, JULIA_DEFAULT_X.1);
+            model.config.julia_set_cfg.x_min = Complex::new(-JULIA_DEFAULT_X.0, -JULIA_DEFAULT_X.1);
+        }
         FractalType::Mandelbrot => {
-            model.config.mandelbrot_cfg.c_max = Complex::new(MANDELBROT_DEFAULT_C_MAX.0,MANDELBROT_DEFAULT_C_MAX.1);
-            model.config.mandelbrot_cfg.c_min = Complex::new(MANDELBROT_DEFAULT_C_MIN.0,MANDELBROT_DEFAULT_C_MIN.1);
-
+            model.config.mandelbrot_cfg.c_max =
+                Complex::new(MANDELBROT_DEFAULT_C_MAX.0, MANDELBROT_DEFAULT_C_MAX.1);
+            model.config.mandelbrot_cfg.c_min =
+                Complex::new(MANDELBROT_DEFAULT_C_MIN.0, MANDELBROT_DEFAULT_C_MIN.1);
         }
     }
     set_editor_fields_area(model);
@@ -239,8 +277,7 @@ pub fn on_msg_zoom_out_area(model: &mut Model) {
         FractalType::JuliaSet => {
             model.config.julia_set_cfg.x_max *= zoom_factor;
             model.config.julia_set_cfg.x_min *= zoom_factor;
-
-        }, 
+        }
         FractalType::Mandelbrot => {
             model.config.mandelbrot_cfg.c_max *= zoom_factor;
             model.config.mandelbrot_cfg.c_min *= zoom_factor;
@@ -249,7 +286,6 @@ pub fn on_msg_zoom_out_area(model: &mut Model) {
 
     set_editor_fields_area(model);
 }
-
 
 pub fn on_msg_mouse_down(model: &mut Model, ev: &web_sys::MouseEvent) {
     if let Some(canvas_coords) = model
@@ -389,12 +425,12 @@ fn adjust_height_to_ratio(model: &mut Model) {
     let dim = match model.config.active_config {
         FractalType::JuliaSet => {
             model.config.julia_set_cfg.x_max - model.config.julia_set_cfg.x_min
-        },
+        }
         FractalType::Mandelbrot => {
             model.config.mandelbrot_cfg.c_max - model.config.mandelbrot_cfg.c_min
-        }        
-    };   
-    model.height = (f64::from(model.width) * dim.imag() / dim.real()) as u32; 
+        }
+    };
+    model.height = (f64::from(model.width) * dim.imag() / dim.real()) as u32;
 }
 
 fn set_editor_fields_params(model: &Model) {

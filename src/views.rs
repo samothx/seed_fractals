@@ -95,6 +95,39 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
             IF!(!model.paused =>  attrs!{At::Disabled => "true" } ),
             IF!(model.edit_mode =>  attrs!{At::Disabled => "true" } ),
             ev(Ev::Change, |_| Msg::TypeChanged),
+        ],
+        div![
+            C!["cb_stats_cntr"],
+            label![
+                C!["type_select_label"],
+                attrs! { At::For => "stats_cb"},
+                "View Stats"
+            ],
+            input![
+                C!["stats_cb"],
+                id!("stats_cb"),
+                attrs! {
+                    At::Name => "stats_cb",
+                    At::Type => "checkbox",
+                },
+                IF!(!model.paused => attrs!{ At::Disabled => "" }),
+                IF!(model.config.view_stats => attrs!{ At::Checked => "1" }),
+                ev(Ev::Change, |_| Msg::StatsChanged),
+            ]
+        ],
+        div![
+            IF![model.config.view_stats => C!["stats_cntr_visible"]],
+            IF![!model.config.view_stats => C!["stats_cntr_hidden"]],
+            textarea![
+                C!["stats_text"],
+                attrs! {
+                   // At::Value => model.stats_text,
+                   At::ReadOnly => "true",
+                   At::Rows => "4",
+                   At::Placeholder => "No Stats yet"
+                },
+                model.stats_text.as_str()
+            ],
         ]
     ]]
 }
