@@ -2,7 +2,7 @@
 
 A fractal explorer website written entirely in rust using the [seed-rs](https://seed-rs.org/) framework. 
 
-![Picture of Fractal](https://drive.google.com/file/d/1j-uu9zNJdr1rInzCwbcKJILwV3uhSZk-/view?usp=sharing "Mandelbrot Detail")
+![Picture of Fractal](https://tele-conference/img/fractal.png)
 
 
 Seed allows you to write client side code in rust. Code is compiled to WebAssembly and run in the browser.
