@@ -1,7 +1,7 @@
 #![allow(clippy::missing_const_for_fn)]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-use std::ops::{Add, AddAssign, Mul, MulAssign};
+use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Complex {
@@ -57,6 +57,25 @@ impl AddAssign for Complex {
         self.imag = self.imag + other.imag;
     }
 }
+
+impl Sub for Complex {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        Self {
+            real: self.real - other.real,
+            imag: self.imag - other.imag,
+        }
+    }
+}
+
+impl SubAssign for Complex {
+    fn sub_assign(&mut self, other: Self) {
+        self.real = self.real - other.real;
+        self.imag = self.imag - other.imag;
+    }
+}
+
 
 impl Mul for Complex {
     type Output = Self;
