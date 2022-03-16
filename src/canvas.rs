@@ -27,7 +27,7 @@ impl Canvas {
     pub fn new(model: &Model) -> Self {
         Self {
             canvas: canvas("canvas").expect("Canvas not found"),
-            steps: match model.active_config {
+            steps: match model.config.active_config {
                 FractalType::JuliaSet => model.config.julia_set_cfg.max_iterations,
                 FractalType::Mandelbrot => model.config.mandelbrot_cfg.max_iterations,
             },

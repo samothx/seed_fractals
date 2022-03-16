@@ -6,8 +6,8 @@ use super::{FractalType, Model, Msg};
 pub fn view(model: &Model) -> Node<Msg> {
     div![
         C!["outer_cntr"],
-        IF![model.active_config == FractalType::Mandelbrot => h1!["Mandelbrot Set"]],
-        IF![model.active_config == FractalType::JuliaSet => h1!["Julia Set"]],
+        IF![model.config.active_config == FractalType::Mandelbrot => h1!["Mandelbrot Set"]],
+        IF![model.config.active_config == FractalType::JuliaSet => h1!["Julia Set"]],
         view_buttons(model),
         view_julia_set_cfg_editor(),
         view_mandelbrot_cfg_editor(),
@@ -56,7 +56,7 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
         button![
             C!["button"],
             id!("pause"),
-            ev(Ev::Click, |_| Msg::Pause),
+            ev(Ev::Click, |_| Msg::Stop),
             IF!(model.paused =>  attrs!{At::Disabled => "true" } ),
             "Pause"
         ],
@@ -81,10 +81,11 @@ fn view_buttons(model: &Model) -> Vec<Node<Msg>> {
             C!["type_select"],
             id!("type_select"),
             attrs! {At::Name => "type_select" },
-            IF![model.active_config == FractalType::Mandelbrot => attrs!{At::Value => "type_mandelbrot"}],
-            IF![model.active_config == FractalType::JuliaSet => attrs!{At::Value => "type_julia_set"}],
+            IF![model.config.active_config == FractalType::Mandelbrot => attrs!{At::Value => "type_mandelbrot"}],
+            IF![model.config.active_config == FractalType::JuliaSet => attrs!{At::Value => "type_julia_set"}],
             option![attrs! {At::Value => "type_mandelbrot" }, "Mandelbrot Set"],
             option![attrs! {At::Value => "type_julia_set" }, "Julia Set"],
+            IF!(!model.paused =>  attrs!{At::Disabled => "true" } ),
             ev(Ev::Change, |_| Msg::TypeChanged),
         ]
     ]]

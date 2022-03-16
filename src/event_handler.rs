@@ -20,7 +20,7 @@ pub fn on_msg_start(model: &mut Model, orders: &mut impl Orders<Msg>) {
     }
     log!("Message received: Start, creating fractal");
 
-    match model.active_config {
+    match model.config.active_config {
         FractalType::JuliaSet => {
             let mut fractal = JuliaSet::new(model);
             model
@@ -73,10 +73,10 @@ pub fn on_msg_type_changed(model: &mut Model) {
     .expect("type_select is not a HtmlSelectElement")
     .value();
 
-    model.active_config = match selected.as_str() {
+    model.config.active_config = match selected.as_str() {
         "type_mandelbrot" => FractalType::Mandelbrot,
         "type_julia_set" => FractalType::JuliaSet,
-        _ => model.active_config,
+        _ => model.config.active_config,
     };
 
 }
@@ -101,7 +101,7 @@ pub fn on_msg_draw(model: &mut Model, orders: &mut impl Orders<Msg>) {
 pub fn on_msg_save_edit(model: &mut Model, orders: &mut impl Orders<Msg>) {
     model.edit_mode = false;
     let document = window().document().expect("document not found");
-    match model.active_config {
+    match model.config.active_config {
         FractalType::JuliaSet => {
             if let Some(value) = get_u32_from_input("julia_iterations") {
                 model.config.julia_set_cfg.max_iterations = value;
@@ -171,7 +171,7 @@ pub fn on_msg_save_edit(model: &mut Model, orders: &mut impl Orders<Msg>) {
 
 pub fn on_msg_cancel_edit(model: &mut Model) {
     model.edit_mode = false;
-    match model.active_config {
+    match model.config.active_config {
         FractalType::JuliaSet => {
             window()
                 .document()
@@ -192,7 +192,7 @@ pub fn on_msg_cancel_edit(model: &mut Model) {
 }
 
 pub fn on_msg_edit(model: &mut Model) {
-    match model.active_config {
+    match model.config.active_config {
         FractalType::JuliaSet => {
             set_u32_on_input(
                 "julia_iterations",
@@ -323,7 +323,7 @@ pub fn on_msg_mouse_up(model: &mut Model, ev: Option<web_sys::MouseEvent>) {
             "setting new values, canvas coordinates: ({},{}), ({},{})",
             x_start, y_start, x_end, y_end
         ));
-        match model.active_config {
+        match model.config.active_config {
             FractalType::JuliaSet => {
                 let x_scale = (model.config.julia_set_cfg.x_max.real()
                     - model.config.julia_set_cfg.x_min.real())
