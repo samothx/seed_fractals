@@ -51,7 +51,7 @@ One of the initial ideas that made me attack this project in the first place was
 impact the rounding errors of floating point arithmetics have on chaotic 
 calculations. 
 
-It is the nature of chaotic functions, that they are vary sensitive to their input values. Small variations in input can lead to vast changes in the result. Rounding errors from floating point calculations constantly insert small rounding errors into the calclation so I would like to see what it looks like with lossless fractional maths. 
+It is the nature of chaotic functions, that they are vary sensitive to their input values. Small variations in input can lead to vast changes in the result. Rounding errors from floating point calculations constantly insert small errors into the calclation so I would like to see what it looks like with lossless fractional maths. 
 
 This is just an idea so far but I am hoping to dig deeper into it soon. 
  
