@@ -1,12 +1,12 @@
 use crate::{FractalType, Model, BACKGROUND_COLOR};
 use seed::log;
 
-use seed::{prelude::*, canvas, window};
+use seed::{prelude::*, canvas}; // window
 
 use super::fractal::Points;
 use seed::prelude::web_sys::{HtmlCanvasElement, ImageData, };
 use seed::prelude::JsValue;
-use web_sys::Navigator;
+// use web_sys::Navigator;
 
 const COLOR_MAX: u32 = 0x00FF_FFFF;
 const COLOR_MIN: u32 = 0x00FF_FFFF;
